@@ -34,7 +34,7 @@ export default function MessageList() {
     selectedAccountId, selectedFolder, messages, setMessages,
     appendMessages, messagesTotal, setMessagesTotal, messagesOffset,
     setMessagesOffset, hasMoreMessages, setHasMoreMessages,
-    loadingMessages, setLoadingMessages, selectedMessageId,
+    loadingMessages, setLoadingMessages, selectedMessageId, lastViewedMessageId,
     setSelectedMessage, updateMessage, removeMessage,
     decrementUnread, incrementUnread, addNotification,
     searchQuery, setSearchQuery, isSearching, setIsSearching,
@@ -1098,7 +1098,7 @@ export default function MessageList() {
           borderBottom: '1px solid var(--border-subtle)',
           boxShadow: listScrolled ? '0 1px 10px rgba(0,0,0,0.2)' : 'none',
           transition: 'box-shadow 0.2s ease',
-          background: 'var(--bg-secondary)', flexShrink: 0,
+          background: 'var(--accent-glow)', flexShrink: 0,
         }}>
           {/* Hamburger */}
           <button
@@ -1363,7 +1363,7 @@ export default function MessageList() {
           {searchFocused && !searchQuery && (
             <div style={{
               position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 100,
-              background: 'var(--bg-elevated, var(--bg-secondary))',
+              background: 'var(--bg-elevated, var(--accent-glow))',
               border: '1px solid var(--border)',
               borderRadius: 8,
               boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
@@ -1658,7 +1658,7 @@ export default function MessageList() {
                   <div style={{
                     position: 'fixed', left: 0, right: 0, bottom: 0,
                     zIndex: 3001,
-                    background: 'var(--bg-secondary)',
+                    background: 'var(--accent-glow)',
                     borderRadius: '16px 16px 0 0',
                     boxShadow: '0 -4px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.04)',
                     paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
@@ -1742,6 +1742,7 @@ export default function MessageList() {
                 threadMsgs={threadMessages[tid] || null}
                 isLoadingThread={loadingThread === tid}
                 selectedMessageId={selectedMessageId}
+                lastViewedMessageId={lastViewedMessageId}
                 showAccount={isUnified}
                 isNarrow={isNarrow}
                 onThreadClick={() => handleThreadClick(message)}
@@ -1762,6 +1763,7 @@ export default function MessageList() {
               key={message.id}
               message={message}
               selected={selectedMessageId === message.id}
+              lastViewed={lastViewedMessageId === message.id && selectedMessageId !== message.id}
               isChecked={selectedIds.has(message.id)}
               selectionMode={selectionMode}
               showAccount={isUnified}
@@ -1985,7 +1987,7 @@ function EmptyState({ folderSyncing, searchQuery, unreadOnly, selectedFolder, ac
       <div style={{ padding: '60px 24px', textAlign: 'center' }}>
         <div style={{
           width: 48, height: 48, borderRadius: 14, margin: '0 auto 16px',
-          background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: 'var(--text-tertiary)',
         }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -2009,7 +2011,7 @@ function EmptyState({ folderSyncing, searchQuery, unreadOnly, selectedFolder, ac
       <div style={{ padding: '60px 24px', textAlign: 'center' }}>
         <div style={{
           width: 48, height: 48, borderRadius: 14, margin: '0 auto 16px',
-          background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: 'var(--accent)',
         }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -2031,7 +2033,7 @@ function EmptyState({ folderSyncing, searchQuery, unreadOnly, selectedFolder, ac
       <div style={{ padding: '60px 24px', textAlign: 'center' }}>
         <div style={{
           width: 48, height: 48, borderRadius: 14, margin: '0 auto 16px',
-          background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center',
           color: 'var(--text-tertiary)',
         }}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -2050,7 +2052,7 @@ function EmptyState({ folderSyncing, searchQuery, unreadOnly, selectedFolder, ac
     <div style={{ padding: '60px 24px', textAlign: 'center' }}>
       <div style={{
         width: 48, height: 48, borderRadius: 14, margin: '0 auto 16px',
-        background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'var(--accent-glow)', display: 'flex', alignItems: 'center', justifyContent: 'center',
         color: 'var(--text-tertiary)',
       }}>
         {isInbox ? (
@@ -2080,7 +2082,7 @@ function EmptyState({ folderSyncing, searchQuery, unreadOnly, selectedFolder, ac
   );
 }
 
-function ThreadRow({ message, isExpanded, threadMsgs, isLoadingThread, selectedMessageId, showAccount, isNarrow, onThreadClick, onSelect, onContextMenu, isMobile, onSwipeLeft, onSwipeRight }) {
+function ThreadRow({ message, isExpanded, threadMsgs, isLoadingThread, selectedMessageId, lastViewedMessageId, showAccount, isNarrow, onThreadClick, onSelect, onContextMenu, isMobile, onSwipeLeft, onSwipeRight }) {
   const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
   const messageCount = message.message_count || 1;
@@ -2179,9 +2181,11 @@ function ThreadRow({ message, isExpanded, threadMsgs, isLoadingThread, selectedM
     };
   }, [isMobile, message, onSwipeLeft, onSwipeRight, springBack]);
 
+  const isLastViewed = lastViewedMessageId === message.id
+    || (lastViewedMessageId && threadMsgs?.some(m => m.id === lastViewedMessageId));
   const rowBg = isMobile
-    ? 'var(--bg-primary)'
-    : (isExpanded ? 'var(--bg-secondary)' : (hovered ? 'var(--bg-tertiary)' : 'transparent'));
+    ? (isLastViewed ? 'var(--accent-glow)' : 'var(--bg-primary)')
+    : (isExpanded ? 'var(--bg-secondary)' : (hovered ? 'var(--bg-tertiary)' : (isLastViewed ? 'var(--accent-glow)' : 'transparent')));
 
   return (
     <div style={{ borderBottom: '1px solid var(--border-subtle)' }}>
@@ -2338,12 +2342,12 @@ function ThreadRow({ message, isExpanded, threadMsgs, isLoadingThread, selectedM
                 display: 'flex', alignItems: 'flex-start', gap: 8,
                 padding: '9px 14px 9px 44px',
                 cursor: 'pointer', position: 'relative',
-                background: selectedMessageId === msg.id ? 'var(--bg-elevated)' : 'transparent',
+                background: selectedMessageId === msg.id || lastViewedMessageId === msg.id ? 'var(--accent-glow)' : 'transparent',
                 borderTop: idx > 0 ? '1px solid var(--border-subtle)' : 'none',
                 transition: 'background 0.1s',
               }}
               onMouseEnter={e => { if (selectedMessageId !== msg.id) e.currentTarget.style.background = 'var(--bg-tertiary)'; }}
-              onMouseLeave={e => { e.currentTarget.style.background = selectedMessageId === msg.id ? 'var(--bg-elevated)' : 'transparent'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = selectedMessageId === msg.id || lastViewedMessageId === msg.id ? 'var(--accent-glow)' : 'transparent'; }}
             >
               {!msg.is_read && (
                 <div style={{
@@ -2379,7 +2383,7 @@ function ThreadRow({ message, isExpanded, threadMsgs, isLoadingThread, selectedM
   );
 }
 
-function MessageRow({ message, selected, isChecked, selectionMode, showAccount, isNarrow, onSelect, onToggleSelect, onMarkRead, onStar, onDelete, onContextMenu, isMobile, onSwipeLeft, onSwipeRight, onLongPress }) {
+function MessageRow({ message, selected, lastViewed, isChecked, selectionMode, showAccount, isNarrow, onSelect, onToggleSelect, onMarkRead, onStar, onDelete, onContextMenu, isMobile, onSwipeLeft, onSwipeRight, onLongPress }) {
   const { t } = useTranslation();
   const [hovered, setHovered] = useState(false);
   const contentRef = useRef(null);
@@ -2505,8 +2509,8 @@ function MessageRow({ message, selected, isChecked, selectionMode, showAccount, 
   const bgDefault = isMobile ? 'var(--bg-primary)' : 'transparent';
   const selectedColor = message.account_color || 'var(--accent)';
   const bg = (selected && !selectionMode)
-    ? 'var(--bg-elevated)'
-    : (isChecked ? 'var(--accent-dim)' : (hovered ? 'var(--bg-tertiary)' : bgDefault));
+    ? 'var(--accent-glow)'
+    : (isChecked ? 'var(--accent-dim)' : (hovered ? 'var(--bg-tertiary)' : (lastViewed ? 'var(--accent-glow)' : bgDefault)));
 
   const showCheckbox = selectionMode;
 
