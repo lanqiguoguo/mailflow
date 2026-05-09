@@ -1049,7 +1049,7 @@ export default function MessageList() {
         const data = await api.getThread(tid, effectiveFolder);
         const msgs = data.messages || [];
         setThreadMessages(tid, msgs);
-        if (msgs.length > 0) handleSelect(msgs[msgs.length - 1]);
+        if (!isMobile && msgs.length > 0) handleSelect(msgs[msgs.length - 1]);
       } catch (err) {
         console.error('Failed to load thread:', err);
       } finally {
@@ -1057,7 +1057,7 @@ export default function MessageList() {
       }
     } else {
       const msgs = threadMessages[tid];
-      if (msgs.length > 0) handleSelect(msgs[msgs.length - 1]);
+      if (!isMobile && msgs.length > 0) handleSelect(msgs[msgs.length - 1]);
     }
   };
 
