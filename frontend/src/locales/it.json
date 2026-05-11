@@ -658,7 +658,8 @@
       "frontendBuild": "Build frontend",
       "license": "Licenza",
       "website": "Sito web",
-      "sourceCode": "Codice sorgente"
+      "sourceCode": "Codice sorgente",
+      "sponsor": "Supporta lo sviluppo"
     }
   },
   "thread": {

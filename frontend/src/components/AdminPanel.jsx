@@ -3232,6 +3232,7 @@ function AboutTab() {
   const linkRows = [
     [t('admin.about.website'),    'https://mailflow.sh'],
     [t('admin.about.sourceCode'), 'https://github.com/maathimself/mailflow'],
+    [t('admin.about.sponsor'),    'https://github.com/sponsors/maathimself'],
   ];
 
   const rowStyle = (last) => ({
