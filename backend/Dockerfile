@@ -9,7 +9,11 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+ARG BUILD_SHA
+ENV BUILD_SHA=${BUILD_SHA:-dev}
+
 COPY --from=deps /app/node_modules ./node_modules
+COPY --chown=node:node package.json ./package.json
 COPY --chown=node:node src/ ./src/
 COPY --chown=node:node migrations/ ./migrations/
 

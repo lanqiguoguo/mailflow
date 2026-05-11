@@ -310,7 +310,8 @@
       "sso": "SSO",
       "integrations": "Intégrations",
       "theme": "Thème",
-      "fontsAndLanguage": "Langue & Police"
+      "fontsAndLanguage": "Langue & Police",
+      "about": "À propos"
     },
     "accounts": {
       "title": "Comptes e-mail",
@@ -648,6 +649,14 @@
     },
     "ssoError": {
       "title": "Erreur SSO"
+    },
+    "about": {
+      "title": "À propos de MailFlow",
+      "subtitle": "Client e-mail open source auto-hébergé",
+      "version": "Version",
+      "backendBuild": "Build backend",
+      "frontendBuild": "Build frontend",
+      "license": "Licence"
     }
   },
   "thread": {

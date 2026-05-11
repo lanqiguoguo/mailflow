@@ -310,7 +310,8 @@
       "sso": "单点登录",
       "integrations": "集成",
       "theme": "主题",
-      "fontsAndLanguage": "语言与字体"
+      "fontsAndLanguage": "语言与字体",
+      "about": "关于"
     },
     "accounts": {
       "title": "邮箱账户",
@@ -650,6 +651,14 @@
     },
     "ssoError": {
       "title": "SSO 错误"
+    },
+    "about": {
+      "title": "关于 MailFlow",
+      "subtitle": "开源自托管邮件客户端",
+      "version": "版本",
+      "backendBuild": "后端构建",
+      "frontendBuild": "前端构建",
+      "license": "许可证"
     }
   },
   "thread": {

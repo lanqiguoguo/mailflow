@@ -2,6 +2,7 @@ import express from 'express';
 import session from 'express-session';
 import cors from 'cors';
 import { createServer } from 'http';
+import { readFileSync } from 'fs';
 import { WebSocketServer } from 'ws';
 import { createClient } from 'redis';
 import RedisStore from 'connect-redis';
@@ -21,6 +22,8 @@ import { encryptExistingCredentials, query } from './services/db.js';
 import { runMigrations } from './services/migrations.js';
 import { setupWebSocket } from './services/websocket.js';
 import { ImapManager } from './services/imapManager.js';
+
+const { version: APP_VERSION } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8'));
 
 const app = express();
 // Trust the nginx reverse proxy so req.secure reflects HTTPS correctly.
@@ -114,6 +117,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/totp', totpRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/api/version', (_req, res) => res.json({ version: APP_VERSION, sha: process.env.BUILD_SHA || 'dev' }));
 
 // Catch unhandled errors thrown (or rejected) inside async route handlers.
 // Express 4 does not automatically forward async rejections to error middleware,

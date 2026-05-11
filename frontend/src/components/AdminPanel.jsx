@@ -3210,6 +3210,51 @@ function SecurityPrivacyTab() {
   );
 }
 
+// ─── About Tab ───────────────────────────────────────────────────────────────
+function AboutTab() {
+  const { t } = useTranslation();
+  const [info, setInfo] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/version')
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(setInfo)
+      .catch(() => setInfo({ version: '—', sha: '—' }));
+  }, []);
+
+  const feSha = import.meta.env.VITE_BUILD_SHA || 'dev';
+  const rows = [
+    [t('admin.about.version'),      info ? info.version : '…'],
+    [t('admin.about.backendBuild'), info ? info.sha     : '…'],
+    [t('admin.about.frontendBuild'), feSha],
+    [t('admin.about.license'),      'AGPL-3.0'],
+  ];
+
+  return (
+    <div style={{ maxWidth: 420 }}>
+      <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+        MailFlow
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 24 }}>
+        {t('admin.about.subtitle')}
+      </div>
+      <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border-subtle)' }}>
+        {rows.map(([label, value], i) => (
+          <div key={label} style={{
+            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            padding: '11px 14px',
+            background: 'var(--bg-secondary)',
+            borderBottom: i < rows.length - 1 ? '1px solid var(--border-subtle)' : 'none',
+          }}>
+            <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label}</span>
+            <span style={{ fontSize: 12, color: 'var(--text-primary)', fontFamily: 'monospace', letterSpacing: '0.02em' }}>{value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const TABS = [
   {
     id: 'accounts', labelKey: 'admin.tabs.accounts',
@@ -3245,6 +3290,10 @@ const TABS = [
     id: 'shortcuts', labelKey: 'admin.tabs.shortcuts',
     mobileHidden: true,
     icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><rect x="2" y="7" width="6" height="4" rx="1"/><rect x="9" y="7" width="6" height="4" rx="1"/><rect x="16" y="7" width="6" height="4" rx="1"/><rect x="2" y="13" width="9" height="4" rx="1"/><rect x="13" y="13" width="9" height="4" rx="1"/></svg>,
+  },
+  {
+    id: 'about', labelKey: 'admin.tabs.about',
+    icon: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="12" y1="12" x2="12" y2="16"/></svg>,
   },
 ];
 
@@ -4155,6 +4204,7 @@ export default function AdminPanel() {
           {adminTab === 'security' && <SecurityPrivacyTab />}
           {adminTab === 'notifications' && <NotificationsTab />}
           {adminTab === 'shortcuts' && !isMobile && <ShortcutsTab />}
+          {adminTab === 'about' && <AboutTab />}
         </div>
       </div>
     );
@@ -4250,6 +4300,7 @@ export default function AdminPanel() {
           {adminTab === 'security' && <SecurityPrivacyTab />}
           {adminTab === 'notifications' && <NotificationsTab />}
           {adminTab === 'shortcuts' && !isMobile && <ShortcutsTab />}
+          {adminTab === 'about' && <AboutTab />}
         </div>
       </div>
     </div>

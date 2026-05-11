@@ -6,6 +6,10 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+
+ARG VITE_BUILD_SHA
+ENV VITE_BUILD_SHA=${VITE_BUILD_SHA:-dev}
+
 RUN npm run build
 
 FROM nginx:alpine

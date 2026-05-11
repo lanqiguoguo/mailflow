@@ -310,7 +310,8 @@
       "sso": "SSO",
       "integrations": "Integrations",
       "theme": "Theme",
-      "fontsAndLanguage": "Language & Font"
+      "fontsAndLanguage": "Language & Font",
+      "about": "About"
     },
     "accounts": {
       "title": "Email accounts",
@@ -650,6 +651,14 @@
     },
     "ssoError": {
       "title": "SSO error"
+    },
+    "about": {
+      "title": "About MailFlow",
+      "subtitle": "Open-source, self-hosted email client",
+      "version": "Version",
+      "backendBuild": "Backend build",
+      "frontendBuild": "Frontend build",
+      "license": "License"
     }
   },
   "thread": {

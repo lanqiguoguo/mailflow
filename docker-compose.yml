@@ -8,6 +8,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_BUILD_SHA: ${GIT_SHA:-dev}
     container_name: mailflow-frontend
     restart: unless-stopped
     ports:
@@ -32,6 +34,8 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
+      args:
+        BUILD_SHA: ${GIT_SHA:-dev}
     container_name: mailflow-backend
     restart: unless-stopped
     environment:

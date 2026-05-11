@@ -310,7 +310,8 @@
       "sso": "SSO",
       "integrations": "Интеграции",
       "theme": "Тема",
-      "fontsAndLanguage": "Язык и шрифт"
+      "fontsAndLanguage": "Язык и шрифт",
+      "about": "О приложении"
     },
     "accounts": {
       "title": "Почтовые аккаунты",
@@ -648,6 +649,14 @@
     },
     "ssoError": {
       "title": "Ошибка SSO"
+    },
+    "about": {
+      "title": "О приложении MailFlow",
+      "subtitle": "Почтовый клиент с открытым исходным кодом для самостоятельного хостинга",
+      "version": "Версия",
+      "backendBuild": "Сборка бэкенда",
+      "frontendBuild": "Сборка фронтенда",
+      "license": "Лицензия"
     }
   },
   "thread": {
