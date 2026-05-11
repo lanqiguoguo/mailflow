@@ -263,11 +263,10 @@ const PROVIDERS = {
 
 export function providerProfile(account) {
   const host = (account.imap_host || '').toLowerCase();
-  const oauth = (account.oauth_provider || '').toLowerCase();
-  if (host.includes('gmail') || host.includes('googlemail') || oauth === 'google') return PROVIDERS.google;
-  if (host.includes('.yahoo.com') || host.includes('.ymail.com') || oauth === 'yahoo') return PROVIDERS.yahoo;
-  if (host.includes('icloud') || host.includes('apple') || host.includes('me.com') || oauth === 'apple') return PROVIDERS.apple;
-  if (host.includes('outlook') || host.includes('hotmail') || host.includes('live.com') || oauth === 'microsoft') return PROVIDERS.microsoft;
+  if (host.includes('.gmail.com') || host.includes('.googlemail.com')) return PROVIDERS.google;
+  if (host.includes('.yahoo.com') || host.includes('.ymail.com')) return PROVIDERS.yahoo;
+  if (host.includes('.icloud.com') || host.includes('.apple.com') || host.includes('.me.com')) return PROVIDERS.apple;
+  if (host.includes('.outlook.com') || host.includes('.hotmail.com') || host.includes('.live.com') || (account.oauth_provider === 'microsoft')) return PROVIDERS.microsoft;
   return PROVIDERS.generic;
 }
 

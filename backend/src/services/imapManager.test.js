@@ -20,6 +20,7 @@ describe('providerProfile — host detection', () => {
   it.each([
     ['imap.gmail.com'],
     ['imap.googlemail.com'],
+    ['smtp.gmail.com'],
   ])('detects google for %s', host => {
     expect(providerProfile(account(host)).pushesFlags).toBe(false);
     expect(providerProfile(account(host)).speculativeFetch).toBe(false);
@@ -39,7 +40,7 @@ describe('providerProfile — host detection', () => {
   it.each([
     ['imap.mail.me.com'],
     ['imap.icloud.com'],
-    ['mail.apple.com'],
+    ['imap.apple.com'],
   ])('detects apple for %s', host => {
     expect(providerProfile(account(host)).speculativeFetch).toBe(true);
     expect(providerProfile(account(host)).batchSize).toBe(200);
@@ -54,31 +55,36 @@ describe('providerProfile — host detection', () => {
     expect(providerProfile(account(host)).pushesFlags).toBe(true);
   });
 
-  it('falls back to generic for an unknown host', () => {
-    const p = providerProfile(account('mail.purelymail.com'));
+  it.each([
+    ['mail.purelymail.com'],
+    ['imap.fastmail.com'],
+    ['imap.protonmail.com'],
+  ])('falls back to generic for unknown host %s', host => {
+    const p = providerProfile(account(host));
     expect(p.speculativeFetch).toBe(true);
     expect(p.pushesFlags).toBe(true);
     expect(p.snippetIndex).toBe(true);
+  });
+
+  it.each([
+    ['acme.com'],
+    ['olive.com'],
+    ['snapple.com'],
+    ['webgmail.ru'],
+  ])('does not false-positive on %s', host => {
+    expect(providerProfile(account(host))).toBe(providerProfile(account('generic.example.com')));
   });
 });
 
 // ── providerProfile — oauth_provider detection ────────────────────────────────
 
 describe('providerProfile — oauth_provider fallback', () => {
-  it('detects google via oauth_provider when host is empty', () => {
-    expect(providerProfile(account('', 'google')).pushesFlags).toBe(false);
-  });
-
-  it('detects yahoo via oauth_provider when host is empty', () => {
-    expect(providerProfile(account('', 'yahoo')).speculativeFetch).toBe(false);
-  });
-
-  it('detects microsoft via oauth_provider when host is empty', () => {
+  it('detects microsoft via oauth_provider (only supported OAuth flow)', () => {
     expect(providerProfile(account('', 'microsoft')).pushesFlags).toBe(true);
   });
 
-  it('detects apple via oauth_provider when host is empty', () => {
-    expect(providerProfile(account('', 'apple')).batchSize).toBe(200);
+  it('does not detect google via oauth_provider alone — host-based only', () => {
+    expect(providerProfile(account('', 'google'))).toBe(providerProfile(account('generic.example.com')));
   });
 });
 
