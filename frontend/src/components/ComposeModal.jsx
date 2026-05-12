@@ -9,8 +9,33 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { TextStyle, Color as TiptapColor, FontFamily } from '@tiptap/extension-text-style';
 import { TextAlign } from '@tiptap/extension-text-align';
+import Image from '@tiptap/extension-image';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table-row';
+import { TableHeader } from '@tiptap/extension-table-header';
+import { TableCell } from '@tiptap/extension-table-cell';
 import Picker from '@emoji-mart/react';
 import emojiData from '@emoji-mart/data';
+
+// Resize an image blob/file to max maxW pixels wide, preserving aspect ratio.
+// Returns a Promise<string> of a base64 data URL.
+function resizeImageToDataUrl(file, maxW = 800) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = img.width > maxW ? maxW / img.width : 1;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL(file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.85));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
 
 // Normalize address arrays to comma-separated string
 // Handles: plain strings, {email} objects, {name, email} objects
@@ -136,10 +161,14 @@ export default function ComposeModal() {
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [minimized, setMinimized] = useState(false);
+  const [maximized, setMaximized] = useState(false);
   const [showReplyType, setShowReplyType] = useState(false);
+  const [htmlMode, setHtmlMode] = useState(false);
+  const [htmlSource, setHtmlSource] = useState('');
   const replyTypeRef = useRef(null);
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
+  const imageInputRef = useRef(null);
 
   const editor = useEditor({
     extensions: [
@@ -150,12 +179,43 @@ export default function ComposeModal() {
       TiptapColor,
       FontFamily,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      Image.configure({ inline: true, allowBase64: true }),
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
       Placeholder.configure({ placeholder: t('compose.bodyPh') }),
     ],
     content: composeData?.body || '',
     autofocus: (isReply || isForward) && !plaintextEmail ? 'start' : false,
     immediatelyRender: false,
+    editorProps: {
+      attributes: { spellcheck: 'true' },
+      handlePaste(view, event) {
+        const items = Array.from(event.clipboardData?.items || []);
+        const imageItem = items.find(it => it.type.startsWith('image/'));
+        if (!imageItem) return false;
+        event.preventDefault();
+        const file = imageItem.getAsFile();
+        if (file) {
+          resizeImageToDataUrl(file).then(dataUrl => {
+            view.dispatch(view.state.tr.replaceSelectionWith(
+              view.state.schema.nodes.image.create({ src: dataUrl })
+            ));
+          }).catch(() => {});
+        }
+        return true;
+      },
+    },
   });
+
+  const insertImageIntoEditor = useCallback(async (file) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    try {
+      const dataUrl = await resizeImageToDataUrl(file);
+      editor?.chain().focus().setImage({ src: dataUrl }).run();
+    } catch (_) {}
+  }, [editor]);
 
   // Track visible viewport height so the compose panel shrinks with the keyboard.
   // Also pin the panel's top edge to the visual viewport to prevent it shifting
@@ -251,7 +311,7 @@ export default function ComposeModal() {
     if (!toFinal.length || !accountId) return;
     setSending(true);
     setError('');
-    const bodyToSend = plaintextEmail ? body : (editor?.getHTML() ?? '');
+    const bodyToSend = plaintextEmail ? body : (htmlMode ? htmlSource : (editor?.getHTML() ?? ''));
     try {
       await api.post('/mail/send', {
         accountId,
@@ -372,7 +432,7 @@ export default function ComposeModal() {
         }}>
           <button
             onClick={() => {
-              const currentBody = plaintextEmail ? body : (editor?.isEmpty ? '' : (editor?.getHTML() ?? ''));
+              const currentBody = plaintextEmail ? body : (htmlMode ? htmlSource : (editor?.isEmpty ? '' : (editor?.getHTML() ?? '')));
               const isDirty =
                 currentBody !== initialBodyRef.current ||
                 subject !== initialSubjectRef.current ||
@@ -586,9 +646,30 @@ export default function ComposeModal() {
               }}
             />
           ) : (
-            <div className="tiptap-compose" style={{ flex: 1, minHeight: 200 }}>
-              <RichToolbar editor={editor} onAttach={() => fileInputRef.current?.click()} />
-              <EditorContent editor={editor} />
+            <div className="tiptap-compose" style={{ flex: 1, minHeight: 200, display: 'flex', flexDirection: 'column' }}>
+              <RichToolbar editor={editor} onAttach={() => fileInputRef.current?.click()}
+                htmlMode={htmlMode}
+                onToggleHtml={() => {
+                  if (!htmlMode) { setHtmlSource(editor?.getHTML() ?? ''); setHtmlMode(true); }
+                  else { editor?.commands.setContent(htmlSource, false); setHtmlMode(false); }
+                }}
+              />
+              {htmlMode ? (
+                <textarea
+                  value={htmlSource}
+                  onChange={e => setHtmlSource(e.target.value)}
+                  spellCheck={false}
+                  style={{
+                    flex: 1, minHeight: 200, padding: '12px 14px',
+                    background: 'var(--bg-secondary)', border: 'none',
+                    color: 'var(--text-primary)', fontSize: 12, lineHeight: 1.6,
+                    fontFamily: 'monospace', resize: 'none', outline: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                />
+              ) : (
+                <EditorContent editor={editor} />
+              )}
             </div>
           )}
 
@@ -736,9 +817,25 @@ export default function ComposeModal() {
   }
 
   return (
+    <>
+      {maximized && (
+        <div
+          onClick={() => setMaximized(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 999,
+            background: 'rgba(0,0,0,0.35)',
+            backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)',
+          }}
+        />
+      )}
     <div
       onKeyDown={handleKeyDown}
-      style={{
+      style={maximized ? {
+        position: 'fixed', top: 28, left: 28, right: 28, bottom: 28,
+        background: 'var(--bg-secondary)', border: '1px solid var(--border)',
+        borderRadius: 12, boxShadow: 'var(--shadow-modal)',
+        zIndex: 1000, display: 'flex', flexDirection: 'column',
+      } : {
         position: 'fixed', bottom: 0, right: 24,
         width: 540, maxWidth: 'calc(100vw - 48px)',
         background: 'var(--bg-secondary)', border: '1px solid var(--border)',
@@ -750,6 +847,7 @@ export default function ComposeModal() {
       }}
     >
       <input ref={fileInputRef} type="file" multiple onChange={handleFileSelect} style={{ display: 'none' }} />
+      <input ref={imageInputRef} type="file" accept="image/*" onChange={e => { const f = e.target.files?.[0]; if (f) insertImageIntoEditor(f); e.target.value = ''; }} style={{ display: 'none' }} />
       {/* Title bar */}
       <div style={{
         padding: '10px 14px', display: 'flex', alignItems: 'center',
@@ -827,12 +925,25 @@ export default function ComposeModal() {
         )}
 
         <div style={{ display: 'flex', gap: 4 }}>
-          <TitleBtn onClick={() => setMinimized(true)}>
+          <TitleBtn onClick={() => setMinimized(true)} title="Minimize">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="5" y1="12" x2="19" y2="12"/>
             </svg>
           </TitleBtn>
-          <TitleBtn onClick={closeCompose} danger>
+          <TitleBtn onClick={() => setMaximized(m => !m)} title={maximized ? 'Restore' : 'Maximize'}>
+            {maximized ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/>
+                <line x1="10" y1="14" x2="3" y2="21"/><line x1="21" y1="3" x2="14" y2="10"/>
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/>
+                <line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+              </svg>
+            )}
+          </TitleBtn>
+          <TitleBtn onClick={closeCompose} danger title="Close">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
@@ -943,7 +1054,13 @@ export default function ComposeModal() {
       </div>
 
       {/* Toolbar — sits outside overflow container so dropdowns are never clipped */}
-      {!plaintextEmail && <RichToolbar editor={editor} onAttach={() => fileInputRef.current?.click()} />}
+      {!plaintextEmail && <RichToolbar editor={editor} onAttach={() => fileInputRef.current?.click()} onInsertImage={() => imageInputRef.current?.click()}
+        htmlMode={htmlMode}
+        onToggleHtml={() => {
+          if (!htmlMode) { setHtmlSource(editor?.getHTML() ?? ''); setHtmlMode(true); }
+          else { editor?.commands.setContent(htmlSource, false); setHtmlMode(false); }
+        }}
+      />}
       {attachments.length > 0 && (
         <AttachmentChips attachments={attachments} onRemove={i => setAttachments(prev => prev.filter((_, j) => j !== i))} />
       )}
@@ -966,6 +1083,20 @@ export default function ComposeModal() {
               resize: 'vertical', outline: 'none',
               fontFamily: 'var(--font-sans, DM Sans, sans-serif)',
               boxSizing: 'border-box', whiteSpace: 'pre-wrap',
+            }}
+          />
+        ) : htmlMode ? (
+          <textarea
+            value={htmlSource}
+            onChange={e => setHtmlSource(e.target.value)}
+            spellCheck={false}
+            style={{
+              width: '100%', minHeight: isReply || isForward ? 120 : 200,
+              padding: '12px 14px',
+              background: 'var(--bg-secondary)', border: 'none',
+              color: 'var(--text-primary)', fontSize: 12, lineHeight: 1.6,
+              fontFamily: 'monospace', resize: 'vertical', outline: 'none',
+              boxSizing: 'border-box',
             }}
           />
         ) : (
@@ -1058,6 +1189,7 @@ export default function ComposeModal() {
         </button>
       </div>
     </div>
+    </>
   );
 }
 
@@ -1096,24 +1228,28 @@ function Sep() {
   return <span style={{ width: 1, background: 'var(--border-subtle)', margin: '2px 4px', alignSelf: 'stretch' }} />;
 }
 
-function RichToolbar({ editor, onAttach }) {
+function RichToolbar({ editor, onAttach, onInsertImage, onInsertTable, htmlMode, onToggleHtml }) {
   const [colorPos, setColorPos] = useState(null);
   const [emojiPos, setEmojiPos] = useState(null);
   const [linkPos, setLinkPos] = useState(null);
+  const [tablePos, setTablePos] = useState(null);
   const [linkUrl, setLinkUrl] = useState('');
   const colorBtnRef = useRef(null);
   const emojiBtnRef = useRef(null);
   const linkBtnRef = useRef(null);
+  const tableBtnRef = useRef(null);
+  const tablePopRef = useRef(null);
   const colorPopRef = useRef(null);
   const emojiPopRef = useRef(null);
   const linkPopRef = useRef(null);
 
   useEffect(() => {
-    if (!colorPos && !emojiPos && !linkPos) return;
+    if (!colorPos && !emojiPos && !linkPos && !tablePos) return;
     const handler = (e) => {
       if (colorPos && colorBtnRef.current && !colorBtnRef.current.contains(e.target) && colorPopRef.current && !colorPopRef.current.contains(e.target)) setColorPos(null);
       if (emojiPos && emojiBtnRef.current && !emojiBtnRef.current.contains(e.target) && emojiPopRef.current && !emojiPopRef.current.contains(e.target)) setEmojiPos(null);
       if (linkPos && linkBtnRef.current && !linkBtnRef.current.contains(e.target) && linkPopRef.current && !linkPopRef.current.contains(e.target)) setLinkPos(null);
+      if (tablePos && tableBtnRef.current && !tableBtnRef.current.contains(e.target) && tablePopRef.current && !tablePopRef.current.contains(e.target)) setTablePos(null);
     };
     document.addEventListener('mousedown', handler);
     document.addEventListener('touchstart', handler, { passive: true });
@@ -1121,7 +1257,7 @@ function RichToolbar({ editor, onAttach }) {
       document.removeEventListener('mousedown', handler);
       document.removeEventListener('touchstart', handler);
     };
-  }, [colorPos, emojiPos, linkPos]);
+  }, [colorPos, emojiPos, linkPos, tablePos]);
 
   const es = useEditorState({
     editor,
@@ -1190,6 +1326,15 @@ function RichToolbar({ editor, onAttach }) {
     }
     setLinkPos(null);
     setLinkUrl('');
+  };
+
+  const openTable = (e) => {
+    e.preventDefault();
+    if (tablePos) { setTablePos(null); return; }
+    const r = tableBtnRef.current.getBoundingClientRect();
+    const left = Math.max(4, Math.min(r.left, window.innerWidth - 200));
+    setTablePos({ top: r.bottom + 4, left });
+    setColorPos(null); setEmojiPos(null); setLinkPos(null);
   };
 
   const tb = (active, title, onMD, children) => (
@@ -1265,6 +1410,39 @@ function RichToolbar({ editor, onAttach }) {
           <span style={{ fontSize: 13, lineHeight: 1 }}>😀</span>
         </button>
 
+        <Sep />
+
+        {onInsertImage && (
+          <button title="Insert image" onMouseDown={e => { e.preventDefault(); onInsertImage(); }}
+            style={{ background: 'none', border: 'none', borderRadius: 4, padding: '3px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </button>
+        )}
+
+        <button ref={tableBtnRef} title="Insert table" onMouseDown={openTable}
+          style={{ background: tablePos ? 'var(--bg-hover)' : 'none', border: 'none', borderRadius: 4, padding: '3px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', color: 'var(--text-secondary)' }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/>
+          </svg>
+        </button>
+
+        {onToggleHtml && (
+          <>
+            <Sep />
+            <button title={htmlMode ? 'Back to rich text' : 'Edit HTML source'} onMouseDown={e => { e.preventDefault(); onToggleHtml(); }}
+              style={{
+                background: htmlMode ? 'var(--accent-dim)' : 'none', border: 'none', borderRadius: 4,
+                padding: '3px 6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center',
+                color: htmlMode ? 'var(--accent)' : 'var(--text-secondary)',
+                fontFamily: 'monospace', fontSize: 11, fontWeight: 600, letterSpacing: '-0.5px',
+              }}>
+              {'</>'}
+            </button>
+          </>
+        )}
+
       </div>
 
       {/* Popups — position:fixed so they escape any overflow clipping */}
@@ -1318,14 +1496,51 @@ function RichToolbar({ editor, onAttach }) {
             perLine={7} emojiSize={18} emojiButtonSize={26} maxFrequentRows={1} />
         </div>
       )}
+
+      {tablePos && (
+        <div ref={tablePopRef} style={{
+          position: 'fixed', top: tablePos.top, left: tablePos.left, zIndex: 9900,
+          background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+          borderRadius: 8, padding: '10px 12px', boxShadow: 'var(--shadow-popover)',
+          display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontWeight: 500 }}>Insert table</span>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {[
+              { label: '3×3', rows: 3, cols: 3 },
+              { label: '3×4', rows: 3, cols: 4 },
+              { label: '4×4', rows: 4, cols: 4 },
+            ].map(({ label, rows, cols }) => (
+              <button key={label} onMouseDown={e => {
+                e.preventDefault();
+                editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
+                setTablePos(null);
+              }} style={{
+                background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                borderRadius: 5, padding: '5px 10px', cursor: 'pointer',
+                fontSize: 12, color: 'var(--text-primary)',
+              }}>{label}</button>
+            ))}
+          </div>
+          <button onMouseDown={e => {
+            e.preventDefault();
+            if (editor.isActive('table')) editor.chain().focus().deleteTable().run();
+            setTablePos(null);
+          }} style={{
+            background: 'none', border: 'none', color: 'var(--red)',
+            fontSize: 11, cursor: 'pointer', padding: 0, textAlign: 'left',
+            display: editor.isActive('table') ? 'block' : 'none',
+          }}>Remove table</button>
+        </div>
+      )}
     </>
   );
 }
 
-function TitleBtn({ children, onClick, danger }) {
+function TitleBtn({ children, onClick, danger, title }) {
   const [hov, setHov] = useState(false);
   return (
-    <button onClick={onClick}
+    <button onClick={onClick} title={title}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
         background: hov ? (danger ? 'var(--red)' : 'var(--bg-hover)') : 'var(--bg-elevated)',

@@ -247,3 +247,49 @@ body, #root {
 @supports (-webkit-touch-callout: none) {
   .tiptap-compose .ProseMirror { font-size: 16px !important; }
 }
+
+/* Inline images in compose */
+.tiptap-compose .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  cursor: default;
+  display: inline-block;
+  vertical-align: bottom;
+}
+.tiptap-compose .ProseMirror img.ProseMirror-selectednode {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Tables in compose */
+.tiptap-compose .ProseMirror table {
+  border-collapse: collapse;
+  margin: 0.5em 0;
+  width: auto;
+  max-width: 100%;
+  overflow: hidden;
+  table-layout: fixed;
+}
+.tiptap-compose .ProseMirror th,
+.tiptap-compose .ProseMirror td {
+  border: 1px solid var(--border);
+  padding: 4px 8px;
+  min-width: 48px;
+  font-size: 13px;
+  vertical-align: top;
+  position: relative;
+}
+.tiptap-compose .ProseMirror th {
+  background: var(--bg-tertiary);
+  font-weight: 600;
+  text-align: left;
+}
+.tiptap-compose .ProseMirror .selectedCell::after {
+  background: var(--accent-dim);
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}

@@ -16,7 +16,9 @@ import sanitizeHtml from 'sanitize-html';
 export function stripEmailHead(html) {
   if (!html) return html;
   return html.replace(/<head\b[^>]*>([\s\S]*?)<\/head>/gi, (_, headContent) => {
-    const noMso = headContent.replace(/<!--\[if[^\]]*\]>[\s\S]*?<!\[endif\]-->/gi, '');
+    // Only strip MSO-positive conditional comments (<!--[if mso]>, <!--[if gte mso 9]>, etc.)
+    // Preserve <!--[if !mso]> blocks which contain browser-targeted CSS that must be kept.
+    const noMso = headContent.replace(/<!--\[if(?!\s*!)[^\]]*\]>[\s\S]*?<!\[endif\]-->/gi, '');
     const styles = noMso.match(/<style\b[^>]*>[\s\S]*?<\/style>/gi) || [];
     return styles.join('');
   });
@@ -220,11 +222,23 @@ export function hasRemoteImages(html) {
 export function blockRemoteImages(html) {
   if (!html) return html;
 
-  // Block <img src="https://..."> — replace with data:, so no network request fires
-  // and no same-origin request is triggered by an empty src="".
+  // Block <img src="https://..."> — replace with a dimension-preserving SVG placeholder
+  // so no network request fires.  A plain data:, produces a 0×0 image; emails that use
+  // height:auto CSS (like marketing templates) would then collapse all images to 0px tall,
+  // making the entire email appear blank.  Reading the explicit width/height attributes
+  // lets us generate a grey rectangle that matches the layout slot the author intended.
   let out = html.replace(
     /(<img\b[^>]*?)\ssrc=(["'])(https?:\/\/[^\s"']*)\2/gi,
-    '$1 src="data:,"'
+    (match, pre) => {
+      const wMatch = pre.match(/\bwidth=["']?(\d+)["']?/i);
+      const hMatch = pre.match(/\bheight=["']?(\d+)["']?/i);
+      const w = wMatch ? parseInt(wMatch[1], 10) : 600;
+      const h = hMatch ? parseInt(hMatch[1], 10) : 200;
+      const svg = encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><rect width="100%" height="100%" fill="#e8e8e8"/></svg>`
+      );
+      return `${pre} src="data:image/svg+xml,${svg}"`;
+    }
   );
 
   // Remove img srcset entirely when it contains any remote URLs.

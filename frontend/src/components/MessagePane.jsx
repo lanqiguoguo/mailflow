@@ -1194,7 +1194,7 @@ export default function MessagePane() {
                 </style></body></html>`}
               scrolling="no"
               style={{ width: '1px', minWidth: '100%', border: 'none', display: 'block', height: '300px' }}
-              sandbox="allow-same-origin allow-popups"
+              sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
               title="Email content"
             />
           </div>
