@@ -110,9 +110,13 @@ export default function MessagePane() {
       (!prev.blockRemoteImages && curr.blockRemoteImages) ||
       prev.addrCount > curr.addrCount ||
       prev.domainCount > curr.domainCount;
-    // Only handle global-off loosening here; whitelist additions are handled in
-    // handleAllowSender/Domain to avoid double-eviction and a superfluous re-fetch.
     const loosenedGlobally = prev.blockRemoteImages && !curr.blockRemoteImages;
+    // Whitelist additions from any source (email banner or Admin Privacy tab) need
+    // blocked cache entries evicted. The email banner handlers also do this directly
+    // but a second eviction pass on an already-empty slot is harmless.
+    const loosenedViaWhitelist = !tightened && (
+      curr.addrCount > prev.addrCount || curr.domainCount > prev.domainCount
+    );
 
     let evicted = false;
     if (tightened) {
@@ -124,7 +128,7 @@ export default function MessagePane() {
         }
       }
     }
-    if (loosenedGlobally) {
+    if (loosenedGlobally || loosenedViaWhitelist) {
       for (const id of Object.keys(bodyCache.current)) {
         if (bodyCache.current[id]?.hasBlockedRemoteImages) {
           delete bodyCache.current[id];

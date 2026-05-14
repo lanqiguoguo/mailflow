@@ -238,8 +238,12 @@ export const useStore = create((set, get) => ({
     return api.savePreferences({ blockRemoteImages: val });
   },
   setImageWhitelist: (whitelist) => {
+    const prev = get().imageWhitelist;
     set({ imageWhitelist: whitelist });
-    return api.savePreferences({ imageWhitelist: whitelist });
+    return api.savePreferences({ imageWhitelist: whitelist }).catch(err => {
+      set({ imageWhitelist: prev });
+      throw err;
+    });
   },
 
   // Keyboard shortcuts — stores only user overrides (action → key).
