@@ -71,7 +71,7 @@ router.get('/settings', async (req, res) => {
 });
 
 router.patch('/settings', async (req, res) => {
-  const { registration_open } = req.body;
+  const { registration_open, internal_auth_disabled } = req.body;
   if (typeof registration_open === 'boolean') {
     await query(
       `INSERT INTO system_settings (key, value, updated_at)
@@ -79,6 +79,38 @@ router.patch('/settings', async (req, res) => {
        ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
       [registration_open ? 'true' : 'false']
     );
+  }
+  if (typeof internal_auth_disabled === 'boolean') {
+    if (internal_auth_disabled) {
+      // Safety: at least one enabled OIDC provider must exist so users have a
+      // way to sign in after password login is blocked.
+      const provCheck = await query(
+        'SELECT COUNT(*) AS count FROM oidc_providers WHERE enabled = true'
+      );
+      if (parseInt(provCheck.rows[0].count) === 0) {
+        return res.status(400).json({
+          error: 'Cannot disable password login: no enabled SSO providers are configured.',
+        });
+      }
+      // Safety: the requesting admin must have a linked SSO identity so they
+      // can still sign in after their current session expires.
+      const idCheck = await query(
+        'SELECT COUNT(*) AS count FROM user_identities WHERE user_id = $1',
+        [req.session.userId]
+      );
+      if (parseInt(idCheck.rows[0].count) === 0) {
+        return res.status(400).json({
+          error: 'Cannot disable password login: link your account to an SSO provider first so you can still sign in.',
+        });
+      }
+    }
+    await query(
+      `INSERT INTO system_settings (key, value, updated_at)
+       VALUES ('internal_auth_disabled', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [internal_auth_disabled ? 'true' : 'false']
+    );
+    console.log(`[admin] ${req.session.username} set internal_auth_disabled=${internal_auth_disabled}`);
   }
   res.json({ ok: true });
 });

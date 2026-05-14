@@ -19,6 +19,7 @@ export default function LoginPage() {
   const [totpCode, setTotpCode] = useState('');
   const [oidcProviders, setOidcProviders] = useState([]);
   const [oidcError, setOidcError] = useState('');
+  const [internalAuthDisabled, setInternalAuthDisabled] = useState(false);
 
   useEffect(() => {
     // Check for invite token in URL
@@ -37,9 +38,12 @@ export default function LoginPage() {
         });
     }
 
-    // Check if open registration is enabled
+    // Check if open registration is enabled and whether password login is disabled
     api.getRegistrationStatus()
-      .then(data => setRegistrationOpen(data.open))
+      .then(data => {
+        setRegistrationOpen(data.open);
+        setInternalAuthDisabled(data.internalAuthDisabled || false);
+      })
       .catch(() => setRegistrationOpen(false)); // fail closed if unreachable
 
     // Load SSO providers
@@ -98,8 +102,8 @@ export default function LoginPage() {
     }
   };
 
-  const canRegister = registrationOpen || inviteToken;
-  const showToggle = mode === 'login' ? canRegister : true;
+  const canRegister = !internalAuthDisabled && (registrationOpen || inviteToken);
+  const showToggle = !internalAuthDisabled && (mode === 'login' ? canRegister : true);
 
   return (
     <div style={{
@@ -139,7 +143,46 @@ export default function LoginPage() {
           background: 'var(--bg-secondary)', border: '1px solid var(--border)',
           borderRadius: 16, padding: 32,
         }}>
-          {totpRequired ? (
+          {internalAuthDisabled && !totpRequired ? (
+            <>
+              <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 500, color: 'var(--text-primary)' }}>
+                {t('login.ssoOnly')}
+              </h2>
+              <p style={{ margin: '0 0 20px', fontSize: 13, color: 'var(--text-tertiary)' }}>
+                {t('login.ssoOnlyDesc')}
+              </p>
+              {oidcError && (
+                <div style={{
+                  marginBottom: 16, padding: '10px 14px',
+                  background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)',
+                  borderRadius: 8, color: 'var(--red)', fontSize: 13,
+                }}>{oidcError}</div>
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {oidcProviders.map(p => (
+                  <a
+                    key={p.id}
+                    href={`/auth/oidc/${p.slug}/start`}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                      padding: '10px 16px',
+                      background: 'var(--bg-tertiary)', border: '1px solid var(--border)',
+                      borderRadius: 8, color: 'var(--text-primary)', fontSize: 14,
+                      fontWeight: 500, textDecoration: 'none',
+                      transition: 'background 0.15s, border-color 0.15s',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)'; e.currentTarget.style.borderColor = 'var(--accent)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-tertiary)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                      <circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/>
+                    </svg>
+                    {t('login.signInWith', { name: p.name })}
+                  </a>
+                ))}
+              </div>
+            </>
+          ) : totpRequired ? (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                 <div style={{

@@ -73,9 +73,17 @@ router.post('/register', authLimiter, async (req, res) => {
 
     if (!isFirstUser) {
       const settingResult = await client.query(
-        "SELECT value FROM system_settings WHERE key = 'registration_open'"
+        "SELECT key, value FROM system_settings WHERE key IN ('registration_open', 'internal_auth_disabled')"
       );
-      const registrationOpen = settingResult.rows[0]?.value === 'true';
+      const settingsMap = {};
+      for (const row of settingResult.rows) settingsMap[row.key] = row.value;
+
+      if (settingsMap.internal_auth_disabled === 'true') {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ error: 'Password-based registration is disabled. Please sign in with your SSO provider.' });
+      }
+
+      const registrationOpen = settingsMap.registration_open === 'true';
 
       if (!registrationOpen) {
         if (!inviteToken) {
@@ -152,6 +160,13 @@ router.post('/login', authLimiter, async (req, res) => {
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
 
   try {
+    const authSetting = await query(
+      "SELECT value FROM system_settings WHERE key = 'internal_auth_disabled'"
+    );
+    if (authSetting.rows[0]?.value === 'true') {
+      return res.status(403).json({ error: 'Password login is disabled. Please sign in with your SSO provider.' });
+    }
+
     const result = await query('SELECT * FROM users WHERE username = $1', [username.toLowerCase().trim()]);
     const user = result.rows[0];
     if (!user) return res.status(401).json({ error: 'Invalid credentials' });
@@ -280,11 +295,17 @@ router.delete('/avatar', async (req, res) => {
   res.json({ ok: true });
 });
 
-// Public endpoint: check if registration is open (used by login page)
+// Public endpoint: check registration and auth settings (used by login page)
 router.get('/registration-status', async (req, res) => {
-  const result = await query("SELECT value FROM system_settings WHERE key = 'registration_open'");
-  const open = result.rows[0]?.value === 'true';
-  res.json({ open });
+  const result = await query(
+    "SELECT key, value FROM system_settings WHERE key IN ('registration_open', 'internal_auth_disabled')"
+  );
+  const map = {};
+  for (const row of result.rows) map[row.key] = row.value;
+  res.json({
+    open: map.registration_open === 'true',
+    internalAuthDisabled: map.internal_auth_disabled === 'true',
+  });
 });
 
 // Public endpoint: validate an invite token before showing the registration form

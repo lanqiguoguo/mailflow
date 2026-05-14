@@ -1825,13 +1825,47 @@ function SSOTab() {
   const [confirmDialog, setConfirmDialog] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
   const [templateNote, setTemplateNote] = useState('');
+  const [internalAuthDisabled, setInternalAuthDisabled] = useState(false);
+  const [internalAuthSaving, setInternalAuthSaving] = useState(false);
+  const [internalAuthError, setInternalAuthError] = useState('');
 
   useEffect(() => {
-    api.admin.oidc.getProviders()
+    const fetchProviders = api.admin.oidc.getProviders()
       .then(d => setProviders(d.providers))
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .catch(console.error);
+    const fetchSettings = api.admin.getSettings()
+      .then(d => setInternalAuthDisabled(d.settings.internal_auth_disabled === 'true'))
+      .catch(console.error);
+    Promise.all([fetchProviders, fetchSettings]).finally(() => setLoading(false));
   }, []);
+
+  const handleToggleInternalAuth = () => {
+    setInternalAuthError('');
+    if (!internalAuthDisabled) {
+      setConfirmDialog({
+        title: t('admin.sso.passwordLoginDisableTitle'),
+        message: t('admin.sso.passwordLoginDisableMsg'),
+        confirmLabel: t('admin.sso.passwordLoginDisableConfirm'),
+        onConfirm: async () => {
+          setInternalAuthSaving(true);
+          try {
+            await api.admin.updateSettings({ internal_auth_disabled: true });
+            setInternalAuthDisabled(true);
+          } catch (err) {
+            setInternalAuthError(err.message);
+          } finally {
+            setInternalAuthSaving(false);
+          }
+        },
+      });
+    } else {
+      setInternalAuthSaving(true);
+      api.admin.updateSettings({ internal_auth_disabled: false })
+        .then(() => setInternalAuthDisabled(false))
+        .catch(err => setInternalAuthError(err.message))
+        .finally(() => setInternalAuthSaving(false));
+    }
+  };
 
   const openNew = () => { setEditing('picking'); setError(''); };
 
@@ -1915,6 +1949,58 @@ function SSOTab() {
       <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 16 }}>
         {t('admin.sso.description')}
       </div>
+
+      {/* ── Password login toggle ── */}
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+          {t('admin.sso.passwordLoginTitle')}
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 10 }}>
+          {t('admin.sso.passwordLoginDesc')}
+        </div>
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '12px 14px', borderRadius: 8,
+          background: 'var(--bg-tertiary)', border: '1px solid var(--border-subtle)',
+        }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>
+              {internalAuthDisabled ? t('admin.sso.passwordLoginDisabled') : t('admin.sso.passwordLoginEnabled')}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginTop: 2 }}>
+              {internalAuthDisabled ? t('admin.sso.passwordLoginDisabledDesc') : t('admin.sso.passwordLoginEnabledDesc')}
+            </div>
+          </div>
+          <button
+            onClick={handleToggleInternalAuth}
+            disabled={internalAuthSaving}
+            style={{
+              width: 44, height: 24, borderRadius: 12,
+              background: internalAuthDisabled ? 'var(--bg-elevated)' : 'var(--accent)',
+              border: `1px solid ${internalAuthDisabled ? 'var(--border)' : 'var(--accent)'}`,
+              cursor: internalAuthSaving ? 'not-allowed' : 'pointer',
+              position: 'relative', transition: 'all 0.2s', flexShrink: 0,
+              opacity: internalAuthSaving ? 0.6 : 1,
+            }}
+          >
+            <div style={{
+              position: 'absolute', top: 3, left: internalAuthDisabled ? 3 : 22,
+              width: 16, height: 16, borderRadius: '50%',
+              background: 'white', transition: 'left 0.2s',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+            }} />
+          </button>
+        </div>
+        {internalAuthError && (
+          <div style={{
+            marginTop: 8, padding: '8px 12px',
+            background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.3)',
+            borderRadius: 7, color: 'var(--red)', fontSize: 12,
+          }}>{internalAuthError}</div>
+        )}
+      </div>
+
+      <div style={{ height: 1, background: 'var(--border-subtle)', marginBottom: 20 }} />
 
       {providers.length === 0 && !editing && (
         <div style={{
