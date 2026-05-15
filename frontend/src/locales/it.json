@@ -425,8 +425,11 @@
       "composeRichTextDesc": "Invia HTML — supporta formattazione e firme stilizzate",
       "composePlainText": "Testo semplice",
       "composePlainTextDesc": "Nessuna formattazione HTML — massima compatibilità",
-      "hoverDelete": "Mostra l'icona di eliminazione al passaggio del mouse",
-      "hoverDeleteDesc": "Mostra una piccola icona del cestino nelle righe dei messaggi quando il puntatore del mouse si trova sopra di esse"
+      "hoverQuickActionsMode": "Azioni rapide al passaggio del mouse",
+      "hoverQuickActionsOff": "Spento",
+      "hoverQuickActionsOffDesc": "Mantieni nascoste le Azioni rapide finché non utilizzi il menu contestuale o le scorciatoie",
+      "hoverQuickActionsOn": "SU",
+      "hoverQuickActionsOnDesc": "Mostra le icone di Azione rapida nelle righe dei messaggi quando il puntatore del mouse si trova sopra di esse"
     },
     "notifications": {
       "title": "Notifiche",

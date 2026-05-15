@@ -429,8 +429,11 @@
       "composeRichTextDesc": "Sendet HTML — unterstützt Formatierung und gestaltete Signaturen",
       "composePlainText": "Klartext",
       "composePlainTextDesc": "Keine HTML-Formatierung — maximale Kompatibilität",
-      "hoverDelete": "Löschsymbol beim Hover anzeigen",
-      "hoverDeleteDesc": "Zeigt in Nachrichtenzeilen ein dezentes Papierkorbsymbol an, wenn sich der Mauszeiger darüber befindet"
+      "hoverQuickActionsMode": "Schnellaktionen beim Überfahren mit der Maus",
+      "hoverQuickActionsOff": "Aus",
+      "hoverQuickActionsOffDesc": "Die Schnellaktionen sollten ausgeblendet bleiben, bis Sie das Kontextmenü oder Tastenkombinationen verwenden",
+      "hoverQuickActionsOn": "An",
+      "hoverQuickActionsOnDesc": "Schnellaktionssymbole in Nachrichtenzeilen anzeigen, wenn sich der Mauszeiger darüber befindet"
     },
     "notifications": {
       "title": "Benachrichtigungen",

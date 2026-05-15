@@ -425,8 +425,11 @@
       "composeRichTextDesc": "Envoie du HTML — prend en charge la mise en forme et les signatures stylisées",
       "composePlainText": "Texte brut",
       "composePlainTextDesc": "Aucun formatage HTML — compatibilité maximale",
-      "hoverDelete": "Afficher l'icône de suppression au survol",
-      "hoverDeleteDesc": "Afficher une icône de poubelle subtile dans les lignes de messages lorsque le pointeur est dessus"
+      "hoverQuickActionsMode": "Actions rapides au survol",
+      "hoverQuickActionsOff": "Désactivé",
+      "hoverQuickActionsOffDesc": "Masquez les actions rapides jusqu'à ce que vous utilisiez le menu contextuel ou les raccourcis",
+      "hoverQuickActionsOn": "Sur",
+      "hoverQuickActionsOnDesc": "Afficher les icônes d'action rapide dans les lignes de message lorsque le pointeur les survole"
     },
     "notifications": {
       "title": "Notifications",

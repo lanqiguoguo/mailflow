@@ -194,11 +194,11 @@ export const useStore = create((set, get) => ({
   },
 
   // Message list quick actions
-  hoverDeleteEnabled: localStorage.getItem('mailflow_hover_delete_enabled') === 'true',
-  setHoverDeleteEnabled: (val) => {
-    localStorage.setItem('mailflow_hover_delete_enabled', String(val));
-    set({ hoverDeleteEnabled: val });
-    schedulePrefSave({ hoverDeleteEnabled: val });
+  hoverQuickActions: localStorage.getItem('mailflow_hover_quick_actions') === 'true',
+  setHoverQuickActions: (val) => {
+    localStorage.setItem('mailflow_hover_quick_actions', String(val));
+    set({ hoverQuickActions: val });
+    schedulePrefSave({ hoverQuickActions: val });
   },
 
   // Thread expansion cache (not persisted — reset on navigation)
@@ -326,9 +326,9 @@ export const useStore = create((set, get) => ({
         localStorage.setItem('mailflow_plaintext_email', String(prefs.plaintextEmail));
         set({ plaintextEmail: prefs.plaintextEmail });
       }
-      if (typeof prefs.hoverDeleteEnabled === 'boolean') {
-        localStorage.setItem('mailflow_hover_delete_enabled', String(prefs.hoverDeleteEnabled));
-        set({ hoverDeleteEnabled: prefs.hoverDeleteEnabled });
+      if (typeof prefs.hoverQuickActions === 'boolean') {
+        localStorage.setItem('mailflow_hover_quick_actions', String(prefs.hoverQuickActions));
+        set({ hoverQuickActions: prefs.hoverQuickActions });
       }
     } catch (_) {}
   },
