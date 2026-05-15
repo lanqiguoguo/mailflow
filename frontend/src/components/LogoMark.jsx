@@ -62,8 +62,11 @@ export default function LogoMark({ size = 32 }) {
       />
 
       {/* Bottom corner seam lines */}
-      <line x1="5"  y1="25.5" x2="13" y2="20" stroke="rgba(0,0,0,0.14)" strokeWidth="1.1"/>
-      <line x1="27" y1="25.5" x2="19" y2="20" stroke="rgba(0,0,0,0.14)" strokeWidth="1.1"/>
+      {/* Masked so they stop at the envelope body bottom edge */}
+      <g clipPath={`url(#ec_${id})`}>
+        <line x1="5"  y1="25.5" x2="13" y2="20" stroke="rgba(0,0,0,0.14)" strokeWidth="1.1"/>
+        <line x1="27" y1="25.5" x2="19" y2="20" stroke="rgba(0,0,0,0.14)" strokeWidth="1.1"/>
+      </g>
     </svg>
   );
 }
