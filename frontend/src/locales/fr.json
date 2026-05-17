@@ -198,7 +198,10 @@
       "markAllRead": "Tout marquer comme lu",
       "syncNow": "Synchroniser maintenant",
       "settings": "Paramètres du compte",
-      "reconnect": "Reconnecter"
+      "reconnect": "Reconnecter",
+      "moveUp": "Déplacer vers le haut",
+      "moveDown": "Déplacer vers le bas",
+      "moveFailed": "Impossible de réordonner les comptes"
     },
     "confirmDelete": "Supprimer le dossier « {{name}} » ? Tous les messages qu'il contient seront définitivement supprimés.",
     "confirmEmpty": "Vider « {{name}} » ? Tous les messages de ce dossier seront définitivement supprimés.",

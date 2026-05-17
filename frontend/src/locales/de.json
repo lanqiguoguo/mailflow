@@ -200,7 +200,10 @@
       "markAllRead": "Alle als gelesen markieren",
       "syncNow": "Jetzt synchronisieren",
       "settings": "Kontoeinstellungen",
-      "reconnect": "Neu verbinden"
+      "reconnect": "Neu verbinden",
+      "moveUp": "Nach oben verschieben",
+      "moveDown": "Nach unten verschieben",
+      "moveFailed": "Sortierung konnte nicht geändert werden"
     },
     "confirmDelete": "Ordner „{{name}}” löschen? Alle darin enthaltenen Nachrichten werden dauerhaft gelöscht.",
     "confirmEmpty": "„{{name}}” leeren? Alle Nachrichten in diesem Ordner werden dauerhaft gelöscht.",

@@ -200,7 +200,10 @@
       "markAllRead": "Mark all as read",
       "syncNow": "Sync now",
       "settings": "Account settings",
-      "reconnect": "Reconnect"
+      "reconnect": "Reconnect",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "moveFailed": "Failed to reorder accounts"
     },
     "confirmDelete": "Delete folder \"{{name}}\"? All messages in it will be permanently deleted.",
     "confirmEmpty": "Empty \"{{name}}\"? All messages in this folder will be permanently deleted.",

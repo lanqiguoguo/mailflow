@@ -249,7 +249,7 @@ export default function Sidebar() {
   const {
     accounts, unreadCounts, selectedAccountId, selectedFolder,
     setSelectedAccount, setShowAdmin, setAdminTab, openCompose,
-    folders, setFolders, user, setUser, sidebarCollapsed: sidebarCollapsedPref, toggleSidebar,
+    folders, setFolders, setAccounts, user, setUser, sidebarCollapsed: sidebarCollapsedPref, toggleSidebar,
     blockRemoteImages, setBlockRemoteImages, setMobileSidebarOpen, addNotification,
     hiddenFolders, setHiddenFolders,
   } = useStore();
@@ -497,6 +497,27 @@ export default function Sidebar() {
     }
   };
 
+  const handleMoveAccount = useCallback(async (account, direction) => {
+    const idx = accounts.findIndex(a => a.id === account.id);
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= accounts.length) return;
+    const targetAccount = accounts[targetIdx];
+    const newOrder = [...accounts];
+    newOrder[idx] = accounts[targetIdx];
+    newOrder[targetIdx] = accounts[idx];
+    setAccounts(newOrder);
+    try {
+      await Promise.all([
+        api.updateAccount(account.id, { sort_order: targetIdx }),
+        api.updateAccount(targetAccount.id, { sort_order: idx }),
+      ]);
+    } catch (err) {
+      setAccounts(accounts);
+      addNotification({ title: t('sidebar.accountMenu.moveFailed'), body: err.message });
+    }
+  }, [accounts, setAccounts, addNotification, t]);
+
   // ── Folder context menu items ──────────────────────────────────────────────
   const buildFolderMenuItems = (accountId, folderObj) => {
     const isProtected = isProtectedFolder(folderObj);
@@ -554,34 +575,59 @@ export default function Sidebar() {
   };
 
   // ── Account context menu items ─────────────────────────────────────────────
-  const buildAccountMenuItems = (account) => [
-    {
-      label: t('sidebar.accountMenu.newFolder'),
-      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>,
-      action: () => handleStartCreateFolder(account.id),
-    },
-    {
-      label: t('sidebar.accountMenu.markAllRead'),
-      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
-      action: () => handleMarkAllRead(account.id, 'INBOX'),
-    },
-    {
-      label: t('sidebar.accountMenu.syncNow'),
-      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>,
-      action: () => api.syncNow(account.id).catch(console.error),
-    },
-    { separator: true },
-    {
-      label: t('sidebar.accountMenu.settings'),
-      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
-      action: () => { setAdminTab('accounts'); setShowAdmin(true); },
-    },
-    {
-      label: t('sidebar.accountMenu.reconnect'),
-      icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>,
-      action: () => api.reconnectAccount(account.id).catch(console.error),
-    },
-  ];
+  const buildAccountMenuItems = (account) => {
+    const idx = accounts.findIndex(a => a.id === account.id);
+    const isFirst = idx === 0;
+    const isLast = idx === accounts.length - 1;
+    const items = [
+      {
+        label: t('sidebar.accountMenu.newFolder'),
+        icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>,
+        action: () => handleStartCreateFolder(account.id),
+      },
+      {
+        label: t('sidebar.accountMenu.markAllRead'),
+        icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>,
+        action: () => handleMarkAllRead(account.id, 'INBOX'),
+      },
+      {
+        label: t('sidebar.accountMenu.syncNow'),
+        icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>,
+        action: () => api.syncNow(account.id).catch(console.error),
+      },
+      { separator: true },
+    ];
+    if (accounts.length > 1) {
+      items.push(
+        {
+          label: t('sidebar.accountMenu.moveUp'),
+          icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><polyline points="18 15 12 9 6 15"/></svg>,
+          action: () => handleMoveAccount(account, 'up'),
+          disabled: isFirst,
+        },
+        {
+          label: t('sidebar.accountMenu.moveDown'),
+          icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><polyline points="6 9 12 15 18 9"/></svg>,
+          action: () => handleMoveAccount(account, 'down'),
+          disabled: isLast,
+        },
+        { separator: true },
+      );
+    }
+    items.push(
+      {
+        label: t('sidebar.accountMenu.settings'),
+        icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
+        action: () => { setAdminTab('accounts'); setShowAdmin(true); },
+      },
+      {
+        label: t('sidebar.accountMenu.reconnect'),
+        icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>,
+        action: () => api.reconnectAccount(account.id).catch(console.error),
+      },
+    );
+    return items;
+  };
 
   return (
     <div style={{

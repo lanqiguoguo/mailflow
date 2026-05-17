@@ -198,7 +198,10 @@
       "markAllRead": "Segna tutto come letto",
       "syncNow": "Sincronizza ora",
       "settings": "Impostazioni account",
-      "reconnect": "Riconnetti"
+      "reconnect": "Riconnetti",
+      "moveUp": "Sposta su",
+      "moveDown": "Sposta giù",
+      "moveFailed": "Impossibile riordinare gli account"
     },
     "confirmDelete": "Eliminare la cartella \"{{name}}\"? Tutti i messaggi al suo interno verranno eliminati in modo permanente.",
     "confirmEmpty": "Svuotare \"{{name}}\"? Tutti i messaggi in questa cartella verranno eliminati in modo permanente.",

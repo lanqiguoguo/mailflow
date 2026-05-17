@@ -198,7 +198,10 @@
       "markAllRead": "全部标为已读",
       "syncNow": "立即同步",
       "settings": "账户设置",
-      "reconnect": "重新连接"
+      "reconnect": "重新连接",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "moveFailed": "账户重新排序失败"
     },
     "confirmDelete": "确定要删除文件夹「{{name}}」吗？其中的所有邮件都将被永久删除。",
     "confirmEmpty": "确定要清空「{{name}}」吗？此文件夹中的所有邮件都将被永久删除。",

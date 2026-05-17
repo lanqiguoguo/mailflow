@@ -198,7 +198,10 @@
       "markAllRead": "Marcar todo como leído",
       "syncNow": "Sincronizar ahora",
       "settings": "Ajustes de cuenta",
-      "reconnect": "Reconectar"
+      "reconnect": "Reconectar",
+      "moveUp": "Mover arriba",
+      "moveDown": "Mover abajo",
+      "moveFailed": "Error al reordenar las cuentas"
     },
     "confirmDelete": "¿Eliminar la carpeta «{{name}}»? Todos los mensajes que contiene serán eliminados permanentemente.",
     "confirmEmpty": "¿Vaciar «{{name}}»? Todos los mensajes de esta carpeta serán eliminados permanentemente.",
