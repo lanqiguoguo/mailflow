@@ -35,7 +35,7 @@ const SWIPE_ACTIONS = {
   star: { color: 'var(--amber, #d97706)' },
   markRead: { color: 'var(--accent)' },
   reply: { color: 'var(--green, #22c55e)' },
-  replyAll: { color: 'var(--blue, #3b82f6)' },
+  replyAll: { color: '#3b82f6' },
   disabled: { color: 'transparent' },
 };
 
