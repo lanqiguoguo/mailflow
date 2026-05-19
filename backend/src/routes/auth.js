@@ -433,7 +433,7 @@ router.post('/push/subscribe', async (req, res) => {
 });
 
 // Remove a push subscription when the user disables notifications.
-router.delete('/push/unsubscribe', async (req, res) => {
+router.post('/push/unsubscribe', async (req, res) => {
   if (!req.session.userId) return res.status(401).json({ error: 'Not authenticated' });
   const { endpoint } = req.body || {};
   if (!endpoint || typeof endpoint !== 'string') {

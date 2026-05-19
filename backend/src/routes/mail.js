@@ -181,7 +181,7 @@ router.get('/messages', async (req, res) => {
         ? (folder === 'INBOX' ? `AND folder = $2` : '')
         : `AND folder = 'INBOX'`;
     const threadResult = await query(`
-      WITH deduped AS (
+      WITH deduped AS MATERIALIZED (
         SELECT DISTINCT ON (m.account_id, COALESCE(m.thread_id, m.id::text), m.message_id)
                m.id, m.uid, m.folder, m.message_id,
                COALESCE(m.thread_id, m.id::text) AS thread_id,
@@ -202,14 +202,15 @@ router.get('/messages', async (req, res) => {
                  m.date ASC
       ),
       thread_totals AS (
-        SELECT COALESCE(thread_id, id::text) AS thread_id,
-               COUNT(DISTINCT message_id)::int AS message_count
-        FROM messages
-        WHERE account_id = ANY($${p})
-          AND is_deleted = false
-          AND message_id IS NOT NULL
+        SELECT COALESCE(m.thread_id, m.id::text) AS thread_id,
+               COUNT(DISTINCT m.message_id)::int AS message_count
+        FROM messages m
+        WHERE m.account_id = ANY($${p})
+          AND m.is_deleted = false
+          AND m.message_id IS NOT NULL
           ${threadFolderFilter}
-        GROUP BY COALESCE(thread_id, id::text)
+          AND COALESCE(m.thread_id, m.id::text) IN (SELECT thread_id FROM deduped)
+        GROUP BY COALESCE(m.thread_id, m.id::text)
       ),
       ranked AS (
         SELECT d.*,
