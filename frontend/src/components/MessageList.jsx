@@ -2552,7 +2552,7 @@ function ThreadRow({ message, isExpanded, threadMsgs, isLoadingThread, selectedM
   const isLastViewed = lastViewedMessageId === message.id
     || (lastViewedMessageId && threadMsgs?.some(m => m.id === lastViewedMessageId));
   const rowBg = isMobile
-    ? (isLastViewed ? 'var(--accent-glow)' : 'var(--bg-primary)')
+    ? 'var(--bg-primary)'
     : (isExpanded ? 'var(--bg-secondary)' : (hovered ? 'var(--bg-tertiary)' : (isLastViewed ? 'var(--accent-glow)' : 'transparent')));
   const leftActionView = getSwipeActionView(swipeRightAction, message, t, unreadCount);
   const rightActionView = getSwipeActionView(swipeLeftAction, message, t, unreadCount);
@@ -2889,7 +2889,7 @@ function MessageRow({ message, selected, lastViewed, isChecked, selectionMode, s
   const selectedColor = message.account_color || 'var(--accent)';
   const bg = (selected && !selectionMode)
     ? 'var(--accent-glow)'
-    : (isChecked ? 'var(--accent-dim)' : (hovered ? 'var(--bg-tertiary)' : (lastViewed ? 'var(--accent-glow)' : bgDefault)));
+    : (isChecked ? 'var(--accent-dim)' : (hovered ? 'var(--bg-tertiary)' : (lastViewed && !isMobile ? 'var(--accent-glow)' : bgDefault)));
 
   const showCheckbox = selectionMode;
   const leftActionView = getSwipeActionView(swipeRightAction, message, t);
