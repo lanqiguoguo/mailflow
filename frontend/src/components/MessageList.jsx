@@ -3035,7 +3035,7 @@ function MessageRow({ message, selected, lastViewed, isChecked, selectionMode, s
         <div style={{
           position: 'absolute', bottom: 6, right: 8,
           display: 'flex', alignItems: 'center', gap: 2,
-          background: bg,
+          background: 'var(--bg-tertiary)',
           borderRadius: 5,
           padding: '1px 2px',
         }}>
