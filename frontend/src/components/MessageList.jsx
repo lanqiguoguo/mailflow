@@ -975,6 +975,7 @@ export default function MessageList() {
 
   const handleBulkMove = useCallback((ids, msgs, folder) => {
     ids.forEach(id => removeMessage(id));
+    msgs.forEach(msg => { if (!msg.is_read) decrementUnread(msg.account_id); });
     setSelectedIds(new Set());
     setSelectionModeActive(false);
     setShowFolderPicker(false);
@@ -1005,9 +1006,10 @@ export default function MessageList() {
         clearTimeout(timer);
         const state = useStore.getState();
         state.setMessages([...state.messages, ...msgs].sort((a, b) => new Date(b.date) - new Date(a.date)));
+        msgs.forEach(msg => { if (!msg.is_read) incrementUnread(msg.account_id); });
       },
     });
-  }, [removeMessage, addNotification, t]);
+  }, [removeMessage, decrementUnread, incrementUnread, addNotification, t]);
 
   const handleBulkArchive = useCallback((ids, msgs) => {
     ids.forEach(id => removeMessage(id));
@@ -1392,6 +1394,7 @@ export default function MessageList() {
         }
         const moveIds = [...new Set(moveMessages.map(msg => msg.id).filter(Boolean))];
         removeMessage(moved.id);
+        if (!moved.is_read) decrementUnread(moved.account_id);
         let moveUndone = false;
         const moveTimer = setTimeout(async () => {
           if (moveUndone) return;
@@ -1410,6 +1413,7 @@ export default function MessageList() {
             clearTimeout(moveTimer);
             const state = useStore.getState();
             state.setMessages([...state.messages, moved].sort((a, b) => new Date(b.date) - new Date(a.date)));
+            if (!moved.is_read) incrementUnread(moved.account_id);
           },
         });
         break;
