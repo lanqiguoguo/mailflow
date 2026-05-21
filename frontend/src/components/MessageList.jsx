@@ -556,7 +556,7 @@ export default function MessageList() {
     }
 
     try {
-      await Promise.all(actionMessages.map(msg => api.markRead(msg.id, read)));
+      await api.bulkRead(actionMessages.map(msg => msg.id), read);
       if (read) {
         actionMessages.forEach(msg => {
           pendingMarkReadMap.delete(msg.id);
@@ -1134,7 +1134,7 @@ export default function MessageList() {
       if (newRead) {
         decrementUnread(msg.account_id);
         setPending(selectedMessageId, msg.account_id);
-        api.markRead(selectedMessageId, true)
+        api.bulkRead([selectedMessageId], true)
           .then(() => {
             pendingMarkReadMap.delete(selectedMessageId);
             completedMarkReadMap.set(selectedMessageId, msg.account_id);
@@ -1148,7 +1148,7 @@ export default function MessageList() {
         incrementUnread(msg.account_id);
         pendingMarkReadMap.delete(selectedMessageId);
         completedMarkReadMap.delete(selectedMessageId);
-        api.markRead(selectedMessageId, false).catch(console.error);
+        api.bulkRead([selectedMessageId], false).catch(console.error);
       }
     };
 
@@ -1383,7 +1383,7 @@ export default function MessageList() {
       updateMessage(message.id, { is_read: true });
       decrementUnread(message.account_id);
       setPending(message.id, message.account_id);
-      api.markRead(message.id, true)
+      api.bulkRead([message.id], true)
         .then(() => {
           pendingMarkReadMap.delete(message.id);
           completedMarkReadMap.set(message.id, message.account_id);
