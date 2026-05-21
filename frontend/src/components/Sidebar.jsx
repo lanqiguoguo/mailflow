@@ -740,8 +740,8 @@ export default function Sidebar() {
 
       {/* Nav */}
       <nav style={{ flex: 1, overflow: 'hidden auto', padding: '4px 8px' }}>
-        {/* Unified Inbox — only shown with 2+ accounts */}
-        {accounts.length >= 2 && (
+        {/* Unified Inbox — only shown with 2+ enabled accounts */}
+        {accounts.filter(a => a.enabled).length >= 2 && (
           <NavItem
             icon={ICONS.inbox}
             label={t('sidebar.allInboxes')}
