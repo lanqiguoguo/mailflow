@@ -593,8 +593,11 @@ export function applyTheme(themeName) {
   }
 
   // Update browser tab favicon to match the active accent colour, preserving
-  // any unread badge that was previously set.
+  // any unread badge that was previously set. Invalidate the base cache so
+  // the new accent is rasterized on the next badge update.
   if (accent && accent.startsWith('#')) {
+    _baseCanvas = null;
+    _baseAccent = null;
     _applyFavicon(accent);
   }
 }
@@ -603,39 +606,57 @@ export function applyTheme(themeName) {
 
 const FAVICON_PX = 32;
 let _badgeCount  = 0;
-let _renderSeq   = 0; // incremented on every render call
-let _appliedSeq  = 0; // sequence number of the last render that was applied to the DOM
+let _renderSeq   = 0;
+let _appliedSeq  = 0;
+
+// Cached rasterization of the base favicon (envelope icon, no badge).
+// Once populated, badge updates are drawn synchronously with Canvas 2D —
+// no SVG → Image → onload round-trip needed.
+let _baseCanvas = null;
+let _baseAccent = null;
+
+function _setFaviconLink(dataUri) {
+  document.querySelectorAll("link[rel~='icon']").forEach(l => l.remove());
+  const link = document.createElement('link');
+  link.rel  = 'icon';
+  link.type = 'image/png';
+  link.href = dataUri;
+  document.head.appendChild(link);
+}
 
 function _applyFavicon(accent) {
   // Rasterise the SVG to a canvas and export as PNG. PNG data URIs go through
   // the browser's image pipeline rather than the document pipeline, which avoids
   // the Chromium quirk where SVG favicons are silently reverted to the cached
   // on-disk file after tab focus changes.
+  const isBase = _badgeCount === 0; // capture before any async gap
   const svgStr = buildFaviconSvg(accent, _badgeCount);
   const blob   = new Blob([svgStr], { type: 'image/svg+xml' });
   const url    = URL.createObjectURL(blob);
   const seq    = ++_renderSeq;
 
-  const img    = new Image(FAVICON_PX, FAVICON_PX);
+  const img = new Image(FAVICON_PX, FAVICON_PX);
   img.onload = () => {
     URL.revokeObjectURL(url);
-    // Only skip this render if a *later* render already applied its result.
-    // This allows the fast exists_hint render to land immediately rather than
-    // being cancelled simply because a newer async render was started.
-    if (seq < _appliedSeq) return;
-    _appliedSeq = seq;
 
-    const canvas  = document.createElement('canvas');
+    const canvas = document.createElement('canvas');
     canvas.width  = FAVICON_PX;
     canvas.height = FAVICON_PX;
     canvas.getContext('2d').drawImage(img, 0, 0, FAVICON_PX, FAVICON_PX);
 
-    document.querySelectorAll("link[rel~='icon']").forEach(l => l.remove());
-    const link = document.createElement('link');
-    link.rel   = 'icon';
-    link.type  = 'image/png';
-    link.href  = canvas.toDataURL('image/png');
-    document.head.appendChild(link);
+    // Cache the no-badge render as the base so all future badge updates can
+    // skip the async round-trip and draw synchronously via Canvas 2D.
+    // Do this before the seq guard so the cache is always populated, even
+    // if a later render has already applied its result to the DOM.
+    if (isBase && !_baseCanvas) {
+      _baseCanvas = canvas;
+      _baseAccent = accent;
+    }
+
+    // Only skip this render if a *later* render already applied its result.
+    if (seq < _appliedSeq) return;
+    _appliedSeq = seq;
+    _setFaviconLink(canvas.toDataURL('image/png'));
   };
   img.onerror = () => URL.revokeObjectURL(url);
   img.src = url;
@@ -644,5 +665,45 @@ function _applyFavicon(accent) {
 export function updateFaviconBadge(count) {
   _badgeCount = count;
   const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-  if (accent && accent.startsWith('#')) _applyFavicon(accent);
+  if (!accent || !accent.startsWith('#')) return;
+
+  // Fast synchronous path: base favicon is cached — composite badge directly.
+  if (_baseCanvas && _baseAccent === accent) {
+    const canvas = document.createElement('canvas');
+    canvas.width  = FAVICON_PX;
+    canvas.height = FAVICON_PX;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(_baseCanvas, 0, 0);
+
+    if (count > 0) {
+      const label = count > 99 ? '99+' : String(count);
+      const r  = label.length > 2 ? 10 : 11;
+      const cx = FAVICON_PX - r;
+      const cy = r;
+      const fs = label.length > 2 ? 8 : label.length > 1 ? 12 : 14;
+      // White border (filled circle, slightly larger than the badge)
+      ctx.beginPath();
+      ctx.arc(cx, cy, r + 1.5, 0, 2 * Math.PI);
+      ctx.fillStyle = 'white';
+      ctx.fill();
+      // Red badge
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+      ctx.fillStyle = '#ef4444';
+      ctx.fill();
+      // White label
+      ctx.fillStyle = 'white';
+      ctx.font = `800 ${fs}px system-ui,sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(label, cx, cy + 0.5);
+    }
+
+    _setFaviconLink(canvas.toDataURL('image/png'));
+    return;
+  }
+
+  // Slow path: base not cached yet (first render or theme change) — use async
+  // SVG rasterization. The onload handler will populate the cache for next time.
+  _applyFavicon(accent);
 }

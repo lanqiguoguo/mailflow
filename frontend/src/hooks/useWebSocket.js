@@ -4,6 +4,15 @@ import { useStore } from '../store/index.js';
 import { api } from '../utils/api.js';
 import { playNotificationSound } from '../utils/notificationSounds.js';
 import { pendingMarkReadMap } from '../utils/pendingReads.js';
+import { updateFaviconBadge } from '../themes.js';
+
+// Compute the correct favicon count given unread counts and the currently
+// selected account. Reads selectedAccountId from the store directly so this
+// can be called outside React's render cycle.
+function _faviconCount(counts) {
+  const { selectedAccountId } = useStore.getState();
+  return selectedAccountId ? (counts.byAccount[selectedAccountId] ?? 0) : counts.total;
+}
 
 // Auth-related close codes that should not trigger reconnect
 const NO_RECONNECT_CODES = new Set([4001, 4003]);
@@ -127,7 +136,11 @@ export function useWebSocket() {
         const counts = useStore.getState().unreadCounts;
         const byAccount = { ...counts.byAccount };
         byAccount[accountId] = (byAccount[accountId] || 0) + delta;
-        useStore.setState({ unreadCounts: { total: counts.total + delta, byAccount } });
+        const newCounts = { total: counts.total + delta, byAccount };
+        useStore.setState({ unreadCounts: newCounts });
+        // Update favicon immediately — do not wait for React's render cycle.
+        // With a pre-cached base this is synchronous (no image load round-trip).
+        updateFaviconBadge(_faviconCount(newCounts));
         break;
       }
 
