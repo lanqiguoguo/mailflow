@@ -763,32 +763,26 @@ router.post('/messages/bulk-delete', async (req, res) => {
 
       // Permanently delete messages that are already in Trash.
       if (toExpunge.length) {
-        const results = await runInBatches(
-          toExpunge, 3,
-          msg => imapManager.permanentDeleteMessage(account, msg.uid, msg.folder)
-        );
-        results.forEach((r, i) => {
-          if (r.status === 'fulfilled') {
-            expungeSucceeded.push(toExpunge[i]);
-          } else {
-            console.error(`bulk-delete IMAP expunge ${toExpunge[i].id}:`, r.reason.message);
-          }
-        });
+        const { succeeded, failed } = await imapManager.bulkPermanentDelete(account, toExpunge.map(m => m.uid), trashPath);
+        const uidToMsg = new Map(toExpunge.map(m => [String(m.uid), m]));
+        for (const uid of succeeded) expungeSucceeded.push(uidToMsg.get(String(uid)));
+        for (const uid of failed) console.error(`bulk-delete IMAP expunge uid ${uid}: IMAP delete failed`);
       }
 
       // Move messages from non-Trash folders into Trash.
       if (toMove.length) {
-        const results = await runInBatches(
-          toMove, 3,
-          msg => imapManager.moveMessage(account, msg.uid, msg.folder, trashPath)
-        );
-        results.forEach((r, i) => {
-          if (r.status === 'fulfilled') {
-            trashMoveSucceeded.push({ msg: toMove[i], trashPath, newUid: r.value || null });
-          } else {
-            console.error(`bulk-delete IMAP move ${toMove[i].id}:`, r.reason.message);
+        const byFolder = {};
+        for (const msg of toMove) {
+          (byFolder[msg.folder] = byFolder[msg.folder] || []).push(msg);
+        }
+        for (const [srcFolder, folderMsgs] of Object.entries(byFolder)) {
+          const uidToMsg = new Map(folderMsgs.map(m => [String(m.uid), m]));
+          const { uidMap, succeeded, failed } = await imapManager.bulkMoveMessages(account, folderMsgs.map(m => m.uid), srcFolder, trashPath);
+          for (const uid of succeeded) {
+            trashMoveSucceeded.push({ msg: uidToMsg.get(String(uid)), trashPath, newUid: uidMap.get(Number(uid)) || null });
           }
-        });
+          for (const uid of failed) console.error(`bulk-delete IMAP move uid ${uid}: IMAP move failed`);
+        }
       }
     }
 
@@ -926,18 +920,21 @@ router.post('/messages/bulk-move', async (req, res) => {
       }
       const accountResult = await query('SELECT * FROM email_accounts WHERE id = $1', [accountId]);
       const account = accountResult.rows[0];
-      const results = await runInBatches(
-        msgs, 3,
-        msg => imapManager.moveMessage(account, msg.uid, msg.folder, folder)
-      );
-      results.forEach((r, i) => {
-        if (r.status === 'fulfilled') {
-          movedIds.push(msgs[i].id);
-          if (r.value) uidUpdates.push({ id: msgs[i].id, newUid: r.value });
-        } else {
-          console.error(`bulk-move IMAP ${msgs[i].id}:`, r.reason.message);
+      const byFolder = {};
+      for (const msg of msgs) {
+        (byFolder[msg.folder] = byFolder[msg.folder] || []).push(msg);
+      }
+      for (const [srcFolder, folderMsgs] of Object.entries(byFolder)) {
+        const uidToMsg = new Map(folderMsgs.map(m => [String(m.uid), m]));
+        const { uidMap, succeeded, failed } = await imapManager.bulkMoveMessages(account, folderMsgs.map(m => m.uid), srcFolder, folder);
+        for (const uid of succeeded) {
+          const msg = uidToMsg.get(String(uid));
+          movedIds.push(msg.id);
+          const newUid = uidMap.get(Number(uid)) || null;
+          if (newUid) uidUpdates.push({ id: msg.id, newUid });
         }
-      });
+        for (const uid of failed) console.error(`bulk-move IMAP uid ${uid}: IMAP move failed`);
+      }
     }
 
     if (movedIds.length > 0) {
@@ -1029,17 +1026,19 @@ router.post('/messages/bulk-archive', async (req, res) => {
 
       const accountResult = await query('SELECT * FROM email_accounts WHERE id = $1', [accountId]);
       const account = accountResult.rows[0];
-      const results = await runInBatches(
-        msgs, 3,
-        msg => imapManager.moveMessage(account, msg.uid, msg.folder, archiveFolder)
-      );
-      results.forEach((r, i) => {
-        if (r.status === 'fulfilled') {
-          archivedIds.push({ id: msgs[i].id, folder: archiveFolder, newUid: r.value || null });
-        } else {
-          console.error(`bulk-archive IMAP ${msgs[i].id}:`, r.reason.message);
+      const byFolder = {};
+      for (const msg of msgs) {
+        (byFolder[msg.folder] = byFolder[msg.folder] || []).push(msg);
+      }
+      for (const [srcFolder, folderMsgs] of Object.entries(byFolder)) {
+        const uidToMsg = new Map(folderMsgs.map(m => [String(m.uid), m]));
+        const { uidMap, succeeded, failed } = await imapManager.bulkMoveMessages(account, folderMsgs.map(m => m.uid), srcFolder, archiveFolder);
+        for (const uid of succeeded) {
+          const msg = uidToMsg.get(String(uid));
+          archivedIds.push({ id: msg.id, folder: archiveFolder, newUid: uidMap.get(Number(uid)) || null });
         }
-      });
+        for (const uid of failed) console.error(`bulk-archive IMAP uid ${uid}: IMAP move failed`);
+      }
     }
 
     // Update DB folder for successfully archived messages, grouped by destination

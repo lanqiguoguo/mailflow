@@ -2295,6 +2295,90 @@ export class ImapManager {
     });
   }
 
+  // Move a batch of UIDs from one folder to another in a single IMAP command.
+  // Returns { uidMap, succeeded, failed } where succeeded/failed are subsets of
+  // the input uids array. On command failure, verifies via UID SEARCH which
+  // messages actually moved (handles the Gmail connection-drop race condition).
+  async bulkMoveMessages(account, uids, fromFolder, toFolder) {
+    if (!uids.length) return { uidMap: new Map(), succeeded: [], failed: [] };
+    try {
+      const uidMap = await withFreshClient(account, async (client) => {
+        const lock = await client.getMailboxLock(fromFolder);
+        try {
+          const result = await client.messageMove(uids.map(String), toFolder, { uid: true });
+          if (result === false) throw new Error('bulk messageMove returned false — server did not confirm move');
+          return result?.uidMap || new Map();
+        } finally {
+          lock.release();
+        }
+      });
+      return { uidMap, succeeded: uids, failed: [] };
+    } catch (err) {
+      console.warn(`bulkMoveMessages ${fromFolder} → ${toFolder}: batch failed (${err.message}), verifying via UID SEARCH`);
+      try {
+        const remaining = await withFreshClient(account, async (client) => {
+          const lock = await client.getMailboxLock(fromFolder);
+          try {
+            return await client.search({ uid: uids.join(',') }, { uid: true });
+          } finally {
+            lock.release();
+          }
+        });
+        const remainingSet = new Set(remaining.map(Number));
+        const succeeded = uids.filter(uid => !remainingSet.has(Number(uid)));
+        const failed    = uids.filter(uid =>  remainingSet.has(Number(uid)));
+        if (succeeded.length) {
+          console.log(`bulkMoveMessages: ${succeeded.length}/${uids.length} messages confirmed moved via UID SEARCH`);
+        }
+        return { uidMap: new Map(), succeeded, failed };
+      } catch (searchErr) {
+        console.error(`bulkMoveMessages: UID SEARCH verification failed: ${searchErr.message}`);
+        return { uidMap: new Map(), succeeded: [], failed: uids };
+      }
+    }
+  }
+
+  // Permanently delete a batch of UIDs already in the given folder (two-step:
+  // flag \Deleted + expunge) in a single IMAP command sequence.
+  // Returns { succeeded, failed } — subsets of the input uids array.
+  async bulkPermanentDelete(account, uids, folder) {
+    if (!uids.length) return { succeeded: [], failed: [] };
+    try {
+      await withFreshClient(account, async (client) => {
+        const lock = await client.getMailboxLock(folder);
+        try {
+          const result = await client.messageDelete(uids.map(String).join(','), { uid: true });
+          if (result === false) throw new Error('bulk messageDelete returned false — server did not confirm deletion');
+        } finally {
+          lock.release();
+        }
+      });
+      return { succeeded: uids, failed: [] };
+    } catch (err) {
+      console.warn(`bulkPermanentDelete ${folder}: batch failed (${err.message}), verifying via UID SEARCH`);
+      try {
+        const remaining = await withFreshClient(account, async (client) => {
+          const lock = await client.getMailboxLock(folder);
+          try {
+            return await client.search({ uid: uids.join(',') }, { uid: true });
+          } finally {
+            lock.release();
+          }
+        });
+        const remainingSet = new Set(remaining.map(Number));
+        const succeeded = uids.filter(uid => !remainingSet.has(Number(uid)));
+        const failed    = uids.filter(uid =>  remainingSet.has(Number(uid)));
+        if (succeeded.length) {
+          console.log(`bulkPermanentDelete: ${succeeded.length}/${uids.length} messages confirmed deleted via UID SEARCH`);
+        }
+        return { succeeded, failed };
+      } catch (searchErr) {
+        console.error(`bulkPermanentDelete: UID SEARCH verification failed: ${searchErr.message}`);
+        return { succeeded: [], failed: uids };
+      }
+    }
+  }
+
   async syncNow(userId, accountId = null) {
     const result = await query(
       'SELECT * FROM email_accounts WHERE user_id = $1 AND enabled = true AND protocol = $2',
