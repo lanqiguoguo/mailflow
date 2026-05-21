@@ -624,26 +624,39 @@ function _setFaviconLink(dataUri) {
   document.head.appendChild(link);
 }
 
+function _rasterise(svgStr, onCanvas) {
+  const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+  const url  = URL.createObjectURL(blob);
+  const img  = new Image(FAVICON_PX, FAVICON_PX);
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    const canvas = document.createElement('canvas');
+    canvas.width  = FAVICON_PX;
+    canvas.height = FAVICON_PX;
+    canvas.getContext('2d').drawImage(img, 0, 0, FAVICON_PX, FAVICON_PX);
+    onCanvas(canvas);
+  };
+  img.onerror = () => URL.revokeObjectURL(url);
+  img.src = url;
+}
+
+function _warmBase(accent) {
+  if (_baseCanvas && _baseAccent === accent) return;
+  _rasterise(buildFaviconSvg(accent, 0), (canvas) => {
+    if (_baseCanvas && _baseAccent === accent) return; // lost the race
+    _baseCanvas = canvas;
+    _baseAccent = accent;
+  });
+}
+
 function _applyFavicon(accent) {
   // Rasterise the SVG to a canvas and export as PNG. PNG data URIs go through
   // the browser's image pipeline rather than the document pipeline, which avoids
   // the Chromium quirk where SVG favicons are silently reverted to the cached
   // on-disk file after tab focus changes.
   const isBase = _badgeCount === 0; // capture before any async gap
-  const svgStr = buildFaviconSvg(accent, _badgeCount);
-  const blob   = new Blob([svgStr], { type: 'image/svg+xml' });
-  const url    = URL.createObjectURL(blob);
   const seq    = ++_renderSeq;
-
-  const img = new Image(FAVICON_PX, FAVICON_PX);
-  img.onload = () => {
-    URL.revokeObjectURL(url);
-
-    const canvas = document.createElement('canvas');
-    canvas.width  = FAVICON_PX;
-    canvas.height = FAVICON_PX;
-    canvas.getContext('2d').drawImage(img, 0, 0, FAVICON_PX, FAVICON_PX);
-
+  _rasterise(buildFaviconSvg(accent, _badgeCount), (canvas) => {
     // Cache the no-badge render as the base so all future badge updates can
     // skip the async round-trip and draw synchronously via Canvas 2D.
     // Do this before the seq guard so the cache is always populated, even
@@ -657,9 +670,7 @@ function _applyFavicon(accent) {
     if (seq < _appliedSeq) return;
     _appliedSeq = seq;
     _setFaviconLink(canvas.toDataURL('image/png'));
-  };
-  img.onerror = () => URL.revokeObjectURL(url);
-  img.src = url;
+  });
 }
 
 export function updateFaviconBadge(count) {
@@ -704,6 +715,9 @@ export function updateFaviconBadge(count) {
   }
 
   // Slow path: base not cached yet (first render or theme change) — use async
-  // SVG rasterization. The onload handler will populate the cache for next time.
+  // SVG rasterization. Also warm the base cache separately so the next badge
+  // update can use the fast synchronous path, even if _badgeCount > 0 now
+  // (which would prevent _applyFavicon from auto-caching the base).
   _applyFavicon(accent);
+  if (_badgeCount > 0) _warmBase(accent);
 }
