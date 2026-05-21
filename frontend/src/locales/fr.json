@@ -420,7 +420,11 @@
       "presetIcloud": "iCloud",
       "presetCustom": "Personnalisé",
       "errorRequired": "L'e-mail, le nom d'utilisateur et le serveur IMAP sont requis",
-      "errorPasswordRequired": "Le mot de passe est requis pour les nouveaux comptes"
+      "errorPasswordRequired": "Le mot de passe est requis pour les nouveaux comptes",
+      "reindex": "Réindexer pour la recherche",
+      "reindexing": "Indexation des messages...",
+      "reindexProgress": "{{synced}} / {{total}} messages indexés",
+      "reindexError": "Échec du démarrage de la réindexation"
     },
     "folderMappings": {
       "title": "Mappage des dossiers",

@@ -179,6 +179,11 @@ export const useStore = create((set, get) => ({
   rulesPreFill: null, // { fromEmail, fromName, subject } — transient, set by context menu
   setRulesPreFill: (v) => set({ rulesPreFill: v }),
 
+  backfillProgress: {}, // { [accountId]: { synced: N, total: N } | null } — transient
+  setBackfillProgress: (accountId, progress) => set(state => ({
+    backfillProgress: { ...state.backfillProgress, [accountId]: progress },
+  })),
+
   // Mobile navigation
   mobileSidebarOpen: false,
   setMobileSidebarOpen: (v) => set({ mobileSidebarOpen: v }),

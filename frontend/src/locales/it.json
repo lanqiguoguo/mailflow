@@ -420,7 +420,11 @@
       "presetIcloud": "iCloud",
       "presetCustom": "Personalizzato",
       "errorRequired": "Email, nome utente e host IMAP sono obbligatori",
-      "errorPasswordRequired": "La password è richiesta per i nuovi account"
+      "errorPasswordRequired": "La password è richiesta per i nuovi account",
+      "reindex": "Reindicizza per la ricerca",
+      "reindexing": "Indicizzazione messaggi...",
+      "reindexProgress": "{{synced}} / {{total}} messaggi indicizzati",
+      "reindexError": "Impossibile avviare la reindicizzazione"
     },
     "folderMappings": {
       "title": "Mappatura cartelle",

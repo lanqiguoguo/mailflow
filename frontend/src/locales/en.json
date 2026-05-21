@@ -424,7 +424,11 @@
       "presetIcloud": "iCloud",
       "presetCustom": "Custom",
       "errorRequired": "Email, username, and IMAP host are required",
-      "errorPasswordRequired": "Password is required for new accounts"
+      "errorPasswordRequired": "Password is required for new accounts",
+      "reindex": "Re-index for search",
+      "reindexing": "Indexing messages...",
+      "reindexProgress": "{{synced}} / {{total}} messages indexed",
+      "reindexError": "Failed to start re-index"
     },
     "folderMappings": {
       "title": "Folder mappings",

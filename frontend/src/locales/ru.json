@@ -420,7 +420,11 @@
       "presetIcloud": "iCloud",
       "presetCustom": "Другое",
       "errorRequired": "Требуются адрес электронной почты, имя пользователя и IMAP-сервер",
-      "errorPasswordRequired": "Для новых аккаунтов требуется пароль"
+      "errorPasswordRequired": "Для новых аккаунтов требуется пароль",
+      "reindex": "Переиндексировать для поиска",
+      "reindexing": "Индексирование сообщений...",
+      "reindexProgress": "Проиндексировано {{synced}} / {{total}} сообщений",
+      "reindexError": "Не удалось запустить переиндексацию"
     },
     "folderMappings": {
       "title": "Сопоставление папок",

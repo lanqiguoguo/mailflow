@@ -420,7 +420,11 @@
       "presetIcloud": "iCloud",
       "presetCustom": "Personalizado",
       "errorRequired": "El correo, el usuario y el servidor IMAP son obligatorios",
-      "errorPasswordRequired": "La contraseña es obligatoria para cuentas nuevas"
+      "errorPasswordRequired": "La contraseña es obligatoria para cuentas nuevas",
+      "reindex": "Re-indexar para búsqueda",
+      "reindexing": "Indexando mensajes...",
+      "reindexProgress": "{{synced}} / {{total}} mensajes indexados",
+      "reindexError": "Error al iniciar la re-indexación"
     },
     "folderMappings": {
       "title": "Asignación de carpetas",

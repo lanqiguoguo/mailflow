@@ -261,7 +261,7 @@ function AccountForm({ initial, onSave, onCancel }) {
 // ─── Accounts Tab ─────────────────────────────────────────────────────────────
 function AccountsTab() {
   const { t } = useTranslation();
-  const { accounts, setAccounts, updateAccount, addNotification } = useStore();
+  const { accounts, setAccounts, updateAccount, addNotification, backfillProgress } = useStore();
   const [subview, setSubview] = useState('list'); // 'list' | 'add' | 'edit' | 'folders' | 'aliases'
   const [editTarget, setEditTarget] = useState(null);
   const [folderMappings, setFolderMappings] = useState({});
@@ -308,6 +308,14 @@ function AccountsTab() {
   const handleReconnect = async (id) => {
     await api.reconnectAccount(id);
     updateAccount(id, { sync_error: null });
+  };
+
+  const handleReindex = async (id) => {
+    try {
+      await api.reindexAccount(id);
+    } catch (err) {
+      addNotification({ type: 'error', title: t('admin.accounts.reindexError'), body: err.message });
+    }
   };
 
   const handleFolderMappingOpen = async (account) => {
@@ -803,6 +811,11 @@ function AccountsTab() {
                   <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
                 </svg>
               </IconBtn>
+              <IconBtn onClick={() => handleReindex(account.id)} title={t('admin.accounts.reindex')} disabled={!!backfillProgress[account.id]}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+              </IconBtn>
               <IconBtn onClick={() => handleDelete(account.id)} title={t('common.remove')} danger>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <polyline points="3 6 5 6 21 6"/>
@@ -828,6 +841,28 @@ function AccountsTab() {
                 <span style={{ color: 'var(--text-secondary)', fontFamily: 'JetBrains Mono, monospace' }}>{val}</span>
               </div>
             ))}
+            {backfillProgress[account.id] && (
+              <div style={{ width: '100%', marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginBottom: 4 }}>
+                  {backfillProgress[account.id].total
+                    ? t('admin.accounts.reindexProgress', {
+                        synced: backfillProgress[account.id].synced,
+                        total: backfillProgress[account.id].total,
+                      })
+                    : t('admin.accounts.reindexing')}
+                </div>
+                {backfillProgress[account.id].total && (
+                  <div style={{ height: 3, borderRadius: 2, background: 'var(--border-subtle)', overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%', borderRadius: 2,
+                      background: 'var(--accent)',
+                      width: `${Math.min(100, Math.round((backfillProgress[account.id].synced / backfillProgress[account.id].total) * 100))}%`,
+                      transition: 'width 0.3s ease',
+                    }} />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       ))}
@@ -911,16 +946,17 @@ function ThemesTab() {
 }
 
 // ─── Admin Panel Shell ────────────────────────────────────────────────────────
-function IconBtn({ children, onClick, title, danger }) {
+function IconBtn({ children, onClick, title, danger, disabled }) {
   const [hov, setHov] = useState(false);
   return (
-    <button onClick={onClick} title={title}
+    <button onClick={disabled ? undefined : onClick} title={title} disabled={disabled}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
       style={{
-        background: hov ? (danger ? 'rgba(248,113,113,0.1)' : 'var(--bg-hover)') : 'transparent',
-        border: `1px solid ${hov ? (danger ? 'rgba(248,113,113,0.3)' : 'var(--border)') : 'transparent'}`,
-        borderRadius: 6, padding: '5px', color: danger && hov ? 'var(--red)' : 'var(--text-tertiary)',
-        cursor: 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.1s',
+        background: hov && !disabled ? (danger ? 'rgba(248,113,113,0.1)' : 'var(--bg-hover)') : 'transparent',
+        border: `1px solid ${hov && !disabled ? (danger ? 'rgba(248,113,113,0.3)' : 'var(--border)') : 'transparent'}`,
+        borderRadius: 6, padding: '5px', color: danger && hov && !disabled ? 'var(--red)' : 'var(--text-tertiary)',
+        cursor: disabled ? 'default' : 'pointer', display: 'flex', alignItems: 'center', transition: 'all 0.1s',
+        opacity: disabled ? 0.4 : 1,
       }}
     >
       {children}

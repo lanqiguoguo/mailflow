@@ -378,7 +378,11 @@
       "presetIcloud": "iCloud",
       "presetCustom": "自定义",
       "errorRequired": "邮箱地址、用户名和 IMAP 服务器为必填项",
-      "errorPasswordRequired": "添加新账户时必须填写密码"
+      "errorPasswordRequired": "添加新账户时必须填写密码",
+      "reindex": "重新索引以供搜索",
+      "reindexing": "正在索引邮件...",
+      "reindexProgress": "已索引 {{synced}} / {{total}} 封邮件",
+      "reindexError": "无法启动重新索引"
     },
     "folderMappings": {
       "title": "文件夹映射",

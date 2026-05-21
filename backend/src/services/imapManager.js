@@ -1614,6 +1614,7 @@ export class ImapManager {
   async backfillAllFolders(account) {
     if (this.backfillAllRunning.has(account.id)) return;
     this.backfillAllRunning.add(account.id);
+    this.broadcast({ type: 'backfill_all_start', accountId: account.id }, account.user_id);
     try {
       const { skipFolderPatterns, skipFolderNames } = providerProfile(account);
 
@@ -1636,6 +1637,7 @@ export class ImapManager {
       }
     } finally {
       this.backfillAllRunning.delete(account.id);
+      this.broadcast({ type: 'backfill_all_complete', accountId: account.id }, account.user_id);
       this.startSnippetIndexer(account).catch(err =>
         console.error(`Snippet indexer failed for ${logAccount(account)}:`, err.message)
       );
