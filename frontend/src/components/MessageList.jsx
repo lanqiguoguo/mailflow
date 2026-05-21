@@ -2836,7 +2836,7 @@ function ThreadRow({ message, isExpanded, threadMsgs, isLoadingThread, selectedM
           </div>
         )}
 
-        <div style={{ flex: 1, minWidth: 0, paddingLeft: unreadCount > 0 ? 6 : 0 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           {/* Row 1: sender + badge + date */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 3 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
@@ -3127,7 +3127,7 @@ function MessageRow({ message, selected, lastViewed, isChecked, selectionMode, s
         }} />
       )}
 
-      <div style={{ paddingLeft: (!hasInteractiveAvatar && selectionMode) ? 22 : (message.is_read ? 0 : 6), display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+      <div style={{ paddingLeft: (!hasInteractiveAvatar && selectionMode) ? 22 : 0, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         {/* Sender avatar — wide layouts only. Morphs into a checkbox on hover or in selection mode. */}
         {!isNarrow && !isMobile && (
           <div
