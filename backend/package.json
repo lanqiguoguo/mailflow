@@ -9,7 +9,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "archiver": "^8.0.0",
+    "archiver": "^7.0.1",
     "bcryptjs": "^2.4.3",
     "connect-redis": "^7.1.0",
     "cors": "^2.8.5",
