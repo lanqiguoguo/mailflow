@@ -1,5 +1,5 @@
 import { query } from './db.js';
-import { resolveArchiveFolder, resolveTrashFolder, getDeleteStrategy } from '../utils/mailUtils.js';
+import { resolveArchiveFolder, resolveTrashFolder, resolveAllTrashPaths, getDeleteStrategy } from '../utils/mailUtils.js';
 
 async function getRulesForAccount(userId, accountId) {
   const result = await query(
@@ -150,7 +150,8 @@ async function applyAction(action, msg, account, imapManager) {
 
     case 'delete': {
       const trashFolder = await resolveTrashFolder(account.id, account.folder_mappings);
-      const strategy = getDeleteStrategy(msg.folder, trashFolder);
+      const allTrashPaths = await resolveAllTrashPaths(account.id, account.folder_mappings);
+      const strategy = getDeleteStrategy(msg.folder, trashFolder, allTrashPaths);
       if (strategy.action === 'no_trash') break;
       if (strategy.action === 'move') {
         await query('UPDATE messages SET folder = $1 WHERE id = $2', [strategy.destination, msg.id]);

@@ -705,9 +705,42 @@ export default function MessageList() {
     addNotification, t,
   ]);
 
-  // On unmount, immediately fire any pending deletes rather than cancelling them.
+  // On page unload (refresh/close), fire pending deletes with keepalive:true so the
+  // browser completes the request even after the page tears down. Clears the map so
+  // the unmount cleanup below does not double-fire on normal navigation.
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      pendingDeleteTimers.current.forEach(({ timer, message, ids }) => {
+        clearTimeout(timer);
+        const deleteIds = ids?.length ? ids : [message.id];
+        try {
+          if (deleteIds.length > 1) {
+            fetch('/api/mail/messages/bulk-delete', {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ids: deleteIds }),
+              keepalive: true,
+            });
+          } else {
+            fetch(`/api/mail/messages/${deleteIds[0]}`, {
+              method: 'DELETE',
+              credentials: 'include',
+              keepalive: true,
+            });
+          }
+        } catch { /* keepalive not supported — best effort */ }
+      });
+      pendingDeleteTimers.current.clear();
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // On normal unmount (navigating away), immediately fire any pending deletes.
   // Navigating away during the 4.5s undo window should still delete the message —
   // cancelling the timer would silently leave it on the server.
+  // (Page refresh is handled by the beforeunload listener above which clears the map first.)
   useEffect(() => () => {
     pendingDeleteTimers.current.forEach(({ timer, message, ids }) => {
       clearTimeout(timer);
@@ -925,6 +958,7 @@ export default function MessageList() {
   }, [displayMessages]);
 
   const handleBulkDelete = useCallback((ids, msgs) => {
+    const key = `bulk:${ids[0]}`;
     ids.forEach(id => setPendingDelete(id));
     ids.forEach(id => removeMessage(id));
     msgs.forEach(msg => { if (!msg.is_read) decrementUnread(msg.account_id); });
@@ -933,6 +967,7 @@ export default function MessageList() {
     setShowFolderPicker(false);
     let undone = false;
     const timer = setTimeout(async () => {
+      pendingDeleteTimers.current.delete(key);
       if (undone) return;
       const chunks = [];
       for (let i = 0; i < ids.length; i += 500) chunks.push(ids.slice(i, i + 500));
@@ -954,12 +989,14 @@ export default function MessageList() {
         addNotification({ type: 'error', title: t('messageList.bulkDeleted.failTitle'), body: t('messageList.bulkDeleted.failBody', { count: failedIds.length }) });
       }
     }, 4500);
+    pendingDeleteTimers.current.set(key, { timer, message: msgs[0], ids });
     addNotification({
       title: t('messageList.bulkDeleted.title', { count: ids.length }),
       body: t('messageList.bulkDeleted.body'),
       onUndo: () => {
         undone = true;
         clearTimeout(timer);
+        pendingDeleteTimers.current.delete(key);
         ids.forEach(id => clearPendingDelete(id));
         useStore.getState().restoreMessages(msgs);
         msgs.forEach(msg => { if (!msg.is_read) incrementUnread(msg.account_id); });
@@ -1372,6 +1409,13 @@ export default function MessageList() {
       case 'moveTo': {
         const folder = data;
         if (!folder) break;
+        // If multiple messages are checked and the right-clicked message is among them,
+        // delegate to handleBulkMove so all selected messages are moved together.
+        if (selectedIds.size > 1 && selectedIds.has(message.id)) {
+          const bulkMsgs = displayMessages.filter(m => selectedIds.has(m.id));
+          handleBulkMove([...selectedIds], bulkMsgs, folder);
+          break;
+        }
         const moved = message;
         let moveMessages = [message];
         try {
@@ -1429,7 +1473,12 @@ export default function MessageList() {
         break;
       }
       case 'delete':
-        scheduleDelete(message);
+        if (selectedIds.size > 1 && selectedIds.has(message.id)) {
+          const bulkMsgs = displayMessages.filter(m => selectedIds.has(m.id));
+          handleBulkDelete([...selectedIds], bulkMsgs);
+        } else {
+          scheduleDelete(message);
+        }
         break;
       default:
         break;

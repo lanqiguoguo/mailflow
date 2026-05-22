@@ -509,11 +509,12 @@ async function acquirePooledClient(account) {
 
 function releasePooledClient(account, client) {
   const pool = connectionPools.get(account.id);
-  if (!pool) { try { client.logout(); } catch (_) {} return; }
+  if (!pool) { client.logout().catch(() => {}); return; }
   pool.inUse.delete(client);
-  // If this client isn't in our pool (was a temp), log it out
+  // If this client isn't in our pool (was a temp or already evicted on error),
+  // log it out. logout() is async — must use .catch() not try/catch.
   if (!pool.clients.includes(client)) {
-    try { client.logout(); } catch (_) {}
+    client.logout().catch(() => {});
   } else {
     drainWaiters(pool);
   }
@@ -522,7 +523,7 @@ function releasePooledClient(account, client) {
 function evictPool(accountId) {
   const pool = connectionPools.get(accountId);
   if (!pool) return;
-  for (const c of pool.clients) { try { c.logout(); } catch (_) {} }
+  for (const c of pool.clients) { c.logout().catch(() => {}); }
   const evictErr = new Error('IMAP pool evicted');
   for (const entry of pool.waiters) { clearTimeout(entry.timer); entry.reject(evictErr); }
   connectionPools.delete(accountId);
@@ -862,7 +863,7 @@ export class ImapManager {
       const dead = this.connections.get(account.id);
       if (dead) {
         this.connections.delete(account.id);
-        try { dead.logout(); } catch (_) {}
+        dead.logout().catch(() => {});
       }
     } finally {
       this.syncingAccounts.delete(account.id);
@@ -1089,7 +1090,7 @@ export class ImapManager {
         );
         const maxKnownUid = Number(max_uid);
 
-        const newMessages = [];
+        let newMessages = [];
 
         // Insert/update a single fetched message and track it as new if appropriate.
         // Called from both Phase 1 and Phase 2; ON CONFLICT handles deduplication so
@@ -1108,6 +1109,24 @@ export class ImapManager {
             const inReplyTo = sanitizeStr(parsed.inReplyTo);
             const refs = sanitizeStr(parsed.references);
             const threadId = await computeThreadId(account.id, msgId, inReplyTo, refs, sanitizeStr(parsed.subject));
+
+            // If a row with this message_id already exists for this account at a
+            // different (folder, uid), it was moved. Relocate it in-place rather
+            // than inserting a duplicate. The COUNT=1 guard prevents incorrectly
+            // merging Gmail's virtual-folder copies (same message_id in INBOX and
+            // [Gmail]/All Mail simultaneously).
+            if (msgId) {
+              const relocated = await query(`
+                UPDATE messages SET folder = $1, uid = $2, is_deleted = false
+                WHERE account_id = $3
+                  AND message_id = $4
+                  AND (folder != $1 OR uid != $2)
+                  AND 1 = (SELECT COUNT(*) FROM messages WHERE account_id = $3 AND message_id = $4)
+                RETURNING id
+              `, [folder, parsed.uid, account.id, msgId]);
+              if (relocated.rows.length > 0) return;
+            }
+
             const result = await query(`
               INSERT INTO messages (
                 account_id, uid, folder, message_id, subject,
@@ -1488,6 +1507,18 @@ export class ImapManager {
                 const bfReplyTo  = sanitizeStr(parsed.inReplyTo);
                 const bfRefs     = sanitizeStr(parsed.references);
                 const bfThreadId = await computeThreadId(account.id, bfMsgId, bfReplyTo, bfRefs, sanitizeStr(parsed.subject));
+
+                if (bfMsgId) {
+                  const relocated = await query(`
+                    UPDATE messages SET folder = $1, uid = $2, is_deleted = false
+                    WHERE account_id = $3
+                      AND message_id = $4
+                      AND (folder != $1 OR uid != $2)
+                      AND 1 = (SELECT COUNT(*) FROM messages WHERE account_id = $3 AND message_id = $4)
+                    RETURNING id
+                  `, [folder, parsed.uid, account.id, bfMsgId]);
+                  if (relocated.rows.length > 0) continue;
+                }
 
                 await query(`
                   INSERT INTO messages (
@@ -2348,22 +2379,50 @@ export class ImapManager {
 
   // Move a batch of UIDs from one folder to another in a single IMAP command.
   // Returns { uidMap, succeeded, failed } where succeeded/failed are subsets of
-  // the input uids array. On command failure, verifies via UID SEARCH which
-  // messages actually moved (handles the Gmail connection-drop race condition).
+  // the input uids array.
+  //
+  // When the server returns a uidMap (UIDPLUS), use it directly.
+  // When no uidMap is returned (no UIDPLUS), attempt UID reconciliation via
+  // destination UIDNEXT so the DB can store the correct new UIDs.
+  // On command failure, verifies via UID SEARCH and confirms destination arrival
+  // before trusting the source-absence result.
   async bulkMoveMessages(account, uids, fromFolder, toFolder) {
     if (!uids.length) return { uidMap: new Map(), succeeded: [], failed: [] };
+    let destUidNextBefore = null;
+
+    // Capture UIDNEXT on a dedicated connection so a STATUS failure (e.g. toFolder
+    // is the currently selected mailbox on a pooled connection) cannot corrupt the
+    // connection used for the actual move.
     try {
-      const uidMap = await withFreshClient(account, async (client) => {
+      const status = await withFreshClient(account, async (client) => {
+        return await client.status(toFolder, { uidNext: true });
+      });
+      destUidNextBefore = status?.uidNext ?? null;
+    } catch (statusErr) {
+      console.warn(`bulkMoveMessages STATUS ${toFolder} failed (${statusErr.message}) — reconciliation skipped`);
+    }
+
+    try {
+      const serverUidMap = await withFreshClient(account, async (client) => {
         const lock = await client.getMailboxLock(fromFolder);
         try {
           const result = await client.messageMove(uids.map(String), toFolder, { uid: true });
           if (result === false) throw new Error('bulk messageMove returned false — server did not confirm move');
-          return result?.uidMap || new Map();
+          return result?.uidMap?.size ? result.uidMap : null;
         } finally {
           lock.release();
         }
       });
+
+      if (serverUidMap) {
+        return { uidMap: serverUidMap, succeeded: uids, failed: [] };
+      }
+
+      // Move succeeded but server returned no uidMap (no UIDPLUS).
+      // Try to recover new UIDs via UIDNEXT scan so the DB stays accurate.
+      const uidMap = await this._reconcileMovedUids(account, uids, toFolder, destUidNextBefore);
       return { uidMap, succeeded: uids, failed: [] };
+
     } catch (err) {
       console.warn(`bulkMoveMessages ${fromFolder} → ${toFolder}: batch failed (${err.message}), verifying via UID SEARCH`);
       try {
@@ -2378,6 +2437,40 @@ export class ImapManager {
         const remainingSet = new Set(remaining.map(Number));
         const succeeded = uids.filter(uid => !remainingSet.has(Number(uid)));
         const failed    = uids.filter(uid =>  remainingSet.has(Number(uid)));
+
+        if (!succeeded.length) {
+          return { uidMap: new Map(), succeeded: [], failed: uids };
+        }
+
+        // Confirm that messages gone from source actually landed in destination
+        // before treating source-absence as proof of success.
+        if (destUidNextBefore !== null) {
+          try {
+            const destNewUids = await withFreshClient(account, async (client) => {
+              const lock = await client.getMailboxLock(toFolder);
+              try {
+                return await client.search({ uid: `${destUidNextBefore}:*` }, { uid: true });
+              } finally {
+                lock.release();
+              }
+            });
+            if (destNewUids.length < succeeded.length) {
+              console.warn(`bulkMoveMessages fallback: ${succeeded.length} UIDs gone from source but only ${destNewUids.length} new UIDs in destination — treating all as failed`);
+              return { uidMap: new Map(), succeeded: [], failed: uids };
+            }
+            // Destination count confirms the move; build uidMap if counts match exactly.
+            const uidMap = new Map();
+            if (destNewUids.length === succeeded.length) {
+              const sortedNew = [...destNewUids].sort((a, b) => a - b);
+              succeeded.forEach((uid, i) => uidMap.set(Number(uid), sortedNew[i]));
+            }
+            console.log(`bulkMoveMessages: ${succeeded.length}/${uids.length} confirmed moved via UID SEARCH + dest verification`);
+            return { uidMap, succeeded, failed };
+          } catch (destErr) {
+            console.warn(`bulkMoveMessages: destination verification failed (${destErr.message}) — trusting source-absence`);
+          }
+        }
+
         if (succeeded.length) {
           console.log(`bulkMoveMessages: ${succeeded.length}/${uids.length} messages confirmed moved via UID SEARCH`);
         }
@@ -2389,17 +2482,70 @@ export class ImapManager {
     }
   }
 
+  // After a successful move that returned no uidMap, scan the destination folder
+  // for UIDs >= destUidNextBefore and assign them to source UIDs in sorted order.
+  // Only commits the mapping when the count matches exactly (conservative).
+  async _reconcileMovedUids(account, sourceUids, toFolder, destUidNextBefore) {
+    if (destUidNextBefore === null) return new Map();
+    try {
+      const newUids = await withFreshClient(account, async (client) => {
+        const lock = await client.getMailboxLock(toFolder);
+        try {
+          return await client.search({ uid: `${destUidNextBefore}:*` }, { uid: true });
+        } finally {
+          lock.release();
+        }
+      });
+      if (newUids.length !== sourceUids.length) {
+        console.warn(`bulkMoveMessages reconcile: expected ${sourceUids.length} new UIDs in ${toFolder}, found ${newUids.length} — skipping UID update (will reconcile on next sync)`);
+        return new Map();
+      }
+      const sortedNew = [...newUids].sort((a, b) => a - b);
+      const uidMap = new Map();
+      sourceUids.forEach((uid, i) => uidMap.set(Number(uid), sortedNew[i]));
+      console.log(`bulkMoveMessages: reconciled ${uidMap.size} UIDs via destination UIDNEXT scan`);
+      return uidMap;
+    } catch (err) {
+      console.warn(`bulkMoveMessages: UID reconciliation failed (${err.message}) — UIDs will be updated on next sync`);
+      return new Map();
+    }
+  }
+
   // Permanently delete a batch of UIDs already in the given folder (two-step:
   // flag \Deleted + expunge) in a single IMAP command sequence.
   // Returns { succeeded, failed } — subsets of the input uids array.
+  //
+  // With UIDPLUS: UID EXPUNGE targets only the specified UIDs — safe.
+  // Without UIDPLUS: plain EXPUNGE removes ALL \Deleted messages in the mailbox.
+  // To prevent collateral damage, we temporarily unflag any other \Deleted messages
+  // before expunging, then restore them in a finally block.
   async bulkPermanentDelete(account, uids, folder) {
     if (!uids.length) return { succeeded: [], failed: [] };
     try {
       await withFreshClient(account, async (client) => {
         const lock = await client.getMailboxLock(folder);
         try {
-          const result = await client.messageDelete(uids.map(String).join(','), { uid: true });
-          if (result === false) throw new Error('bulk messageDelete returned false — server did not confirm deletion');
+          const hasUidPlus = client.capabilities?.has('UIDPLUS');
+          if (hasUidPlus) {
+            const result = await client.messageDelete(uids.map(String).join(','), { uid: true });
+            if (result === false) throw new Error('bulk messageDelete returned false — server did not confirm deletion');
+          } else {
+            // No UIDPLUS: protect other \Deleted messages from the broad EXPUNGE.
+            const ourSet = new Set(uids.map(Number));
+            const allDeleted = await client.search({ deleted: true }, { uid: true });
+            const othersDeleted = allDeleted.filter(uid => !ourSet.has(uid));
+            if (othersDeleted.length > 0) {
+              await client.messageFlagsRemove(othersDeleted.join(','), ['\\Deleted'], { uid: true });
+            }
+            try {
+              const result = await client.messageDelete(uids.map(String).join(','), { uid: true });
+              if (result === false) throw new Error('bulk messageDelete returned false — server did not confirm deletion');
+            } finally {
+              if (othersDeleted.length > 0) {
+                await client.messageFlagsAdd(othersDeleted.join(','), ['\\Deleted'], { uid: true });
+              }
+            }
+          }
         } finally {
           lock.release();
         }

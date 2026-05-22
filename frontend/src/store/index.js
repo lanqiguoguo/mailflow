@@ -33,10 +33,13 @@ export const useStore = create((set, get) => ({
   })),
 
   // Navigation
-  selectedAccountId: null, // null = unified inbox
-  selectedFolder: 'INBOX',
+  selectedAccountId: localStorage.getItem('mailflow_selected_account') || null, // '' stored as null
+  selectedFolder: localStorage.getItem('mailflow_selected_folder') || 'INBOX',
   messagesRefreshToken: 0, // incremented on every nav click so the effect always re-fires
-  setSelectedAccount: (accountId, folder = 'INBOX') => set(state => ({
+  setSelectedAccount: (accountId, folder = 'INBOX') => {
+    localStorage.setItem('mailflow_selected_account', accountId ?? '');
+    localStorage.setItem('mailflow_selected_folder', folder);
+    return set(state => ({
     selectedAccountId: accountId,
     selectedFolder: folder,
     selectedMessageId: null,
@@ -46,7 +49,8 @@ export const useStore = create((set, get) => ({
     messagesRefreshToken: state.messagesRefreshToken + 1,
     expandedThreadId: null,
     threadMessages: {},
-  })),
+  }));
+  },
 
   // Messages
   messages: [],

@@ -205,6 +205,20 @@ export function useWebSocket() {
         break;
       }
 
+      case 'folder_updated': {
+        // Emitted by move/archive routes after messages land in a destination folder.
+        // Triggers a silent refresh so the destination folder shows the moved messages
+        // without playing sounds or popping notifications.
+        const { accountId: fuAccountId, folder: fuFolder } = data;
+        const fuStore = useStore.getState();
+        const fuRelevant = fuStore.selectedAccountId === null || fuStore.selectedAccountId === fuAccountId;
+        const fuVisible  = fuStore.selectedFolder === (fuFolder || 'INBOX');
+        if (fuRelevant && fuVisible) {
+          window.dispatchEvent(new CustomEvent('mailflow:refresh'));
+        }
+        break;
+      }
+
       case 'sync_complete': {
         window.dispatchEvent(new CustomEvent('mailflow:refresh'));
         window.dispatchEvent(new CustomEvent('mailflow:sync_done'));
