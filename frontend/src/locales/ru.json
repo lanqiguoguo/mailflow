@@ -80,6 +80,7 @@
     "allowSender": "Всегда разрешать от {{email}}",
     "allowDomain": "Всегда разрешать от @{{domain}}",
     "downloading": "Загрузка…",
+    "downloadAll": "Скачать все",
     "reply": "Ответить",
     "replyAll": "Ответить всем",
     "replyOptions": "Параметры ответа",

@@ -80,6 +80,7 @@
     "allowSender": "Consenti sempre da {{email}}",
     "allowDomain": "Consenti sempre da @{{domain}}",
     "downloading": "Download in corso…",
+    "downloadAll": "Scarica tutto",
     "reply": "Rispondi",
     "replyAll": "Rispondi a tutti",
     "replyOptions": "Opzioni di risposta",

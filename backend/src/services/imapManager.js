@@ -2155,6 +2155,47 @@ export class ImapManager {
     });
   }
 
+  // Fetch multiple attachment parts in a single IMAP round trip.
+  // parts: array of { part, encoding } (metadata from messages.attachments).
+  // Returns Map<partNum, Buffer> — missing or empty parts are omitted.
+  async fetchMultipleAttachments(account, uid, folder, parts) {
+    return withFreshClient(account, async (client) => {
+      const lock = await client.getMailboxLock(folder);
+      try {
+        const uidStr = String(uid);
+        const partNums = parts.map(p => p.part);
+        const buffers = new Map();
+
+        for await (const msg of client.fetch(
+          uidStr,
+          { uid: true, bodyStructure: true, bodyParts: partNums },
+          { uid: true }
+        )) {
+          // Build a live encoding map from BODYSTRUCTURE (more reliable than stored metadata)
+          const liveEncodings = new Map();
+          if (msg.bodyStructure) {
+            const r = { textParts: [], attachments: [] };
+            walkStructure(msg.bodyStructure, r);
+            for (const att of r.attachments) liveEncodings.set(att.part, att.encoding);
+          }
+
+          if (msg.bodyParts) {
+            for (const [partNum, buf] of msg.bodyParts) {
+              if (!buf || buf.length === 0) continue;
+              const inputPart = parts.find(p => p.part === partNum);
+              const encoding = liveEncodings.get(partNum) || inputPart?.encoding || 'base64';
+              buffers.set(partNum, decodeAttachmentBuffer(buf, encoding));
+            }
+          }
+        }
+
+        return buffers;
+      } finally {
+        lock.release();
+      }
+    });
+  }
+
   async setFlag(account, uid, folder, flag, value) {
     console.log(`setFlag: uid=${uid} folder=${folder} flag=${flag} value=${value}`);
     try {

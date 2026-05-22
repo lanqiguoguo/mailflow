@@ -80,6 +80,7 @@
     "allowSender": "Permitir siempre desde {{email}}",
     "allowDomain": "Permitir siempre desde @{{domain}}",
     "downloading": "Descargando…",
+    "downloadAll": "Descargar todo",
     "reply": "Responder",
     "replyAll": "Responder a todos",
     "replyOptions": "Opciones de respuesta",

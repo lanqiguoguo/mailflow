@@ -82,6 +82,7 @@
     "allowSender": "Immer erlauben von {{email}}",
     "allowDomain": "Immer erlauben von @{{domain}}",
     "downloading": "Wird heruntergeladen…",
+    "downloadAll": "Alle herunterladen",
     "reply": "Antworten",
     "replyAll": "Allen antworten",
     "replyOptions": "Antwortoptionen",

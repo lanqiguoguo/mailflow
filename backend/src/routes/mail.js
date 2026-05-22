@@ -1,4 +1,7 @@
 import { Router } from 'express';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const archiver = require('archiver');
 import { query } from '../services/db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { imapManager } from '../index.js';
@@ -357,6 +360,89 @@ router.get('/messages/:id/headers', async (req, res) => {
   } catch (err) {
     console.error('Headers fetch error:', err);
     res.status(500).json({ error: 'Failed to fetch message headers' });
+  }
+});
+
+const ZIP_MAX_FILES = 100;
+const ZIP_MAX_TOTAL_BYTES = 150 * 1024 * 1024; // 150 MB
+const ZIP_MAX_FILE_BYTES  =  50 * 1024 * 1024; //  50 MB per file
+
+// Download all attachments as a ZIP archive
+router.get('/messages/:id/attachments.zip', async (req, res) => {
+  const { id } = req.params;
+  if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid message id' });
+
+  const result = await query(`
+    SELECT m.*, a.user_id FROM messages m
+    JOIN email_accounts a ON m.account_id = a.id
+    WHERE m.id = $1 AND a.user_id = $2
+  `, [id, req.session.userId]);
+
+  if (!result.rows.length) return res.status(404).json({ error: 'Message not found' });
+  const message = result.rows[0];
+
+  const attachments = typeof message.attachments === 'string'
+    ? JSON.parse(message.attachments || '[]')
+    : (message.attachments || []);
+
+  if (attachments.length === 0) return res.status(404).json({ error: 'No attachments' });
+  if (attachments.length > ZIP_MAX_FILES) return res.status(400).json({ error: `Too many attachments (max ${ZIP_MAX_FILES})` });
+
+  const knownTotal = attachments.reduce((sum, a) => sum + (a.size || 0), 0);
+  if (knownTotal > ZIP_MAX_TOTAL_BYTES) {
+    return res.status(413).json({ error: 'Total attachment size exceeds the 150 MB ZIP limit.' });
+  }
+
+  // Exclude per-file oversize items; unknown-size (0) are allowed through.
+  const eligible = attachments.filter(a => !a.size || a.size <= ZIP_MAX_FILE_BYTES);
+  if (eligible.length === 0) return res.status(413).json({ error: 'All attachments exceed the 50 MB per-file limit.' });
+
+  try {
+    const accountResult = await query('SELECT * FROM email_accounts WHERE id = $1', [message.account_id]);
+    if (!accountResult.rows.length) return res.status(404).json({ error: 'Account not found' });
+    const account = accountResult.rows[0];
+
+    const bufferMap = await imapManager.fetchMultipleAttachments(account, message.uid, message.folder, eligible);
+    if (bufferMap.size === 0) return res.status(404).json({ error: 'Could not fetch attachments' });
+
+    // Deduplicate filenames: invoice.pdf → invoice (2).pdf
+    const usedNames = new Map();
+    const entries = [];
+    for (const att of eligible) {
+      const buf = bufferMap.get(att.part);
+      if (!buf) continue;
+      let name = safeFilename(att.filename);
+      if (usedNames.has(name)) {
+        const n = usedNames.get(name) + 1;
+        usedNames.set(name, n);
+        const dot = name.lastIndexOf('.');
+        name = dot > 0 ? `${name.slice(0, dot)} (${n})${name.slice(dot)}` : `${name} (${n})`;
+      } else {
+        usedNames.set(name, 1);
+      }
+      entries.push({ name, buf });
+    }
+
+    if (entries.length === 0) return res.status(404).json({ error: 'Could not fetch attachments' });
+
+    const zipName = safeFilename((message.subject || 'attachments').substring(0, 100)) + '-attachments.zip';
+    const encoded = encodeURIComponent(zipName);
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${zipName}"; filename*=UTF-8''${encoded}`);
+
+    const archive = archiver('zip', { zlib: { level: 6 } });
+    archive.on('error', err => {
+      console.error('ZIP archive error:', err.message);
+      if (!res.headersSent) res.status(500).json({ error: 'Failed to create ZIP' });
+    });
+    archive.pipe(res);
+    for (const { name, buf } of entries) {
+      archive.append(buf, { name });
+    }
+    archive.finalize();
+  } catch (err) {
+    console.error('ZIP fetch error:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Failed to create ZIP' });
   }
 });
 
