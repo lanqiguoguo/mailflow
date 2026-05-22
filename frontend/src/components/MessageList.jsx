@@ -1508,6 +1508,9 @@ export default function MessageList() {
   };
 
   const isUnified = selectedAccountId === null;
+  const selectedAccount = accounts.find(a => a.id === selectedAccountId);
+  const accountColor = selectedAccount?.color || 'currentColor';
+  const showInboxIcon = !isUnified && selectedFolder === 'INBOX' && !searchQuery.trim();
 
   const label = searchQuery.trim()
     ? `Search: "${searchQuery}"`
@@ -1572,9 +1575,19 @@ export default function MessageList() {
               margin: 0, fontSize: 16, fontWeight: 600,
               color: 'var(--text-primary)', overflow: 'hidden',
               textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-              minWidth: 0,
+              minWidth: 0, display: 'flex', alignItems: 'center',
             }}>
-              {label}
+              {isUnified && !searchQuery.trim() ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+                  <path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>
+                </svg>
+              ) : showInboxIcon ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={accountColor} strokeWidth="2">
+                  <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+                  <path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>
+                </svg>
+              ) : label}
             </h2>
             {headerUnread > 0 && !searchQuery.trim() && (
               <span style={{
@@ -1674,8 +1687,19 @@ export default function MessageList() {
             color: 'var(--text-primary)',
             flex: 1, minWidth: 0,
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            display: 'flex', alignItems: 'center',
           }}>
-            {label}
+            {isUnified && !searchQuery ? (
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+                <path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>
+              </svg>
+            ) : showInboxIcon ? (
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={accountColor} strokeWidth="2">
+                <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/>
+                <path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>
+              </svg>
+            ) : label}
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, marginLeft: 6 }}>
             {messagesTotal > 0 && !searchQuery && (
