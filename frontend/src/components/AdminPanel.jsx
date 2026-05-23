@@ -1717,6 +1717,9 @@ function IntegrationsTab() {
                       style={{ ...inputStyle, fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}
                       onFocus={e => e.target.style.borderColor = 'var(--accent)'}
                       onBlur={e => e.target.style.borderColor = 'var(--border)'} />
+                    <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 5 }}>
+                      {t('admin.integrations.microsoft.tenantIdNote')}
+                    </div>
                   </Field>
                 </div>
 
