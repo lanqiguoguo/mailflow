@@ -420,6 +420,7 @@
       "presetGmail": "Gmail",
       "presetYahoo": "Yahoo Mail",
       "presetIcloud": "iCloud",
+      "presetMicrosoft": "Outlook",
       "presetCustom": "Personnalisé",
       "errorRequired": "L'e-mail, le nom d'utilisateur et le serveur IMAP sont requis",
       "errorPasswordRequired": "Le mot de passe est requis pour les nouveaux comptes",
@@ -744,7 +745,18 @@
         "save": "Enregistrer la configuration",
         "savedNote": "Configuration enregistrée. Cliquez sur « Connecter un compte » pour autoriser.",
         "connectedNote": "Compte Microsoft 365 connecté avec succès ! Vérifiez l'onglet Comptes.",
-        "remove": "Supprimer"
+        "remove": "Supprimer",
+        "deviceCodeTitle": "Connexion par code d'appareil",
+        "deviceCodeNote": "Aucun URI de redirection ni secret client requis. Dans Azure, allez dans Authentification et activez 'Autoriser les flux de clients publics'. Idéal pour les comptes Outlook.com / Hotmail personnels.",
+        "deviceCodeStart": "Démarrer le flux de code d'appareil",
+        "deviceCodeInstructions": "Visitez le lien ci-dessous sur n'importe quel appareil et entrez le code pour autoriser MailFlow :",
+        "deviceCodeVisit": "Visitez :",
+        "deviceCodeEnter": "Entrez le code :",
+        "deviceCodeWaiting": "En attente d'autorisation…",
+        "deviceCodeExpired": "Code expiré. Recommencez.",
+        "deviceCodeDeclined": "L'autorisation a été refusée.",
+        "deviceCodeError": "Une erreur s'est produite. Veuillez réessayer.",
+        "deviceCodeCancel": "Annuler"
       }
     },
     "ssoLinked": {

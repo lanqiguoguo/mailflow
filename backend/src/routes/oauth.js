@@ -21,6 +21,10 @@ const router = Router();
 
 const MICROSOFT_AUTH_URL = 'https://login.microsoftonline.com';
 
+// In-memory store for pending device code flows — keyed by userId.
+// Device codes expire in 15 minutes so no persistence is needed.
+const deviceFlows = new Map();
+
 function getMsConfig() {
   return {
     clientId: process.env.MS_CLIENT_ID,
@@ -101,85 +105,175 @@ router.get('/microsoft/callback', async (req, res) => {
       throw new Error(tokens.error_description || tokens.error || 'Token exchange failed');
     }
 
-    const { access_token, refresh_token, expires_in, id_token } = tokens;
-    const expiresInSecs = Number.isFinite(expires_in) && expires_in > 0 ? expires_in : 3600;
-    const expiry = new Date(Date.now() + expiresInSecs * 1000);
-
-    // Validate the id_token via Microsoft's JWKS, then extract user info.
-    // The access_token is scoped to outlook.office.com (IMAP/SMTP) and cannot be used
-    // with graph.microsoft.com, so id_token is the right source for email/name.
-    let email = null;
-    let displayName = null;
-    if (id_token) {
-      const jwks = getMsJwks(tenantId);
-      const verifyOpts = { audience: clientId };
-      // For multi-tenant ('common'/'organizations'/'consumers'), issuers vary per tenant,
-      // so we skip issuer validation and rely on audience + signature instead.
-      const fixedTenants = new Set(['common', 'organizations', 'consumers']);
-      if (!fixedTenants.has(tenantId)) {
-        verifyOpts.issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
-      }
-      try {
-        const { payload } = await jwtVerify(id_token, jwks, verifyOpts);
-        email = payload.email || payload.preferred_username || null;
-        displayName = payload.name || null;
-      } catch (jwtErr) {
-        console.error('Microsoft id_token validation failed:', jwtErr.message);
-        throw new Error('Could not validate Microsoft identity token — please try again');
-      }
-    }
-
-    if (!email) throw new Error('Could not retrieve email address from Microsoft profile — ensure the openid, email, and profile scopes are granted');
-
-    // Check if this account already exists
-    const existing = await query(
-      'SELECT id FROM email_accounts WHERE user_id = $1 AND email_address = $2',
-      [userId, email]
-    );
-
-    let accountId;
-    if (existing.rows.length) {
-      // Update tokens
-      accountId = existing.rows[0].id;
-      await query(`
-        UPDATE email_accounts SET
-          oauth_access_token = $1, oauth_refresh_token = $2, oauth_token_expiry = $3,
-          name = $4, sync_error = NULL
-        WHERE id = $5
-      `, [encrypt(access_token), encrypt(refresh_token), expiry, displayName || email, accountId]);
-    } else {
-      // Create new account
-      const colors = ['#0078d4', '#106ebe', '#005a9e', '#004578'];
-      const color = colors[Math.floor(Math.random() * colors.length)];
-      const result = await query(`
-        INSERT INTO email_accounts (
-          user_id, name, email_address, color, protocol,
-          imap_host, imap_port, imap_tls,
-          smtp_host, smtp_port, smtp_tls,
-          auth_user,
-          oauth_provider, oauth_access_token, oauth_refresh_token, oauth_token_expiry
-        ) VALUES ($1,$2,$3,$4,'imap',
-          'outlook.office365.com', 993, true,
-          'smtp.office365.com', 587, 'STARTTLS',
-          $3,
-          'microsoft', $5, $6, $7)
-        RETURNING *
-      `, [userId, displayName, email, color, encrypt(access_token), encrypt(refresh_token), expiry]);
-      accountId = result.rows[0].id;
-    }
-
-    // Fetch the full account row and connect it
-    const accountResult = await query('SELECT * FROM email_accounts WHERE id = $1', [accountId]);
-    const account = accountResult.rows[0];
-    imapManager.connectAccount(account).catch(err =>
-      console.error(`OAuth connect failed for ${redactEmail(email)}:`, err.message)
-    );
+    await processMicrosoftTokens(userId, tokens, { tenantId, clientId });
 
     // Redirect back to app with success
     res.redirect('/?oauth_success=microsoft');
   } catch (err) {
     console.error('Microsoft OAuth callback error:', err);
     res.redirect('/?oauth_error=Authentication+failed');
+  }
+});
+
+// Shared: validate tokens, upsert account, connect IMAP.
+async function processMicrosoftTokens(userId, tokens, { tenantId, clientId }) {
+  const { access_token, refresh_token, expires_in, id_token } = tokens;
+  const expiresInSecs = Number.isFinite(expires_in) && expires_in > 0 ? expires_in : 3600;
+  const expiry = new Date(Date.now() + expiresInSecs * 1000);
+
+  // Validate the id_token via Microsoft's JWKS, then extract user info.
+  // The access_token is scoped to outlook.office.com (IMAP/SMTP) and cannot be used
+  // with graph.microsoft.com, so id_token is the right source for email/name.
+  let email = null;
+  let displayName = null;
+  if (id_token) {
+    const jwks = getMsJwks(tenantId);
+    const verifyOpts = { audience: clientId };
+    // For multi-tenant ('common'/'organizations'/'consumers'), issuers vary per tenant,
+    // so we skip issuer validation and rely on audience + signature instead.
+    const fixedTenants = new Set(['common', 'organizations', 'consumers']);
+    if (!fixedTenants.has(tenantId)) {
+      verifyOpts.issuer = `https://login.microsoftonline.com/${tenantId}/v2.0`;
+    }
+    try {
+      const { payload } = await jwtVerify(id_token, jwks, verifyOpts);
+      email = payload.email || payload.preferred_username || null;
+      displayName = payload.name || null;
+    } catch (jwtErr) {
+      console.error('Microsoft id_token validation failed:', jwtErr.message);
+      throw new Error('Could not validate Microsoft identity token — please try again');
+    }
+  }
+
+  if (!email) throw new Error('Could not retrieve email address from Microsoft profile — ensure the openid, email, and profile scopes are granted');
+
+  const existing = await query(
+    'SELECT id FROM email_accounts WHERE user_id = $1 AND email_address = $2',
+    [userId, email]
+  );
+
+  let accountId;
+  if (existing.rows.length) {
+    accountId = existing.rows[0].id;
+    await query(`
+      UPDATE email_accounts SET
+        oauth_access_token = $1, oauth_refresh_token = $2, oauth_token_expiry = $3,
+        name = $4, sync_error = NULL
+      WHERE id = $5
+    `, [encrypt(access_token), encrypt(refresh_token), expiry, displayName || email, accountId]);
+  } else {
+    const colors = ['#0078d4', '#106ebe', '#005a9e', '#004578'];
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const result = await query(`
+      INSERT INTO email_accounts (
+        user_id, name, email_address, color, protocol,
+        imap_host, imap_port, imap_tls,
+        smtp_host, smtp_port, smtp_tls,
+        auth_user,
+        oauth_provider, oauth_access_token, oauth_refresh_token, oauth_token_expiry
+      ) VALUES ($1,$2,$3,$4,'imap',
+        'outlook.office365.com', 993, true,
+        'smtp.office365.com', 587, 'STARTTLS',
+        $3,
+        'microsoft', $5, $6, $7)
+      RETURNING *
+    `, [userId, displayName, email, color, encrypt(access_token), encrypt(refresh_token), expiry]);
+    accountId = result.rows[0].id;
+  }
+
+  const accountResult = await query('SELECT * FROM email_accounts WHERE id = $1', [accountId]);
+  imapManager.connectAccount(accountResult.rows[0]).catch(err =>
+    console.error(`OAuth connect failed for ${redactEmail(email)}:`, err.message)
+  );
+  return email;
+}
+
+// Step 1: initiate device code flow — returns user_code + verification_uri to the frontend.
+router.post('/microsoft/device', async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: 'Not authenticated' });
+  const { clientId, tenantId } = getMsConfig();
+  if (!clientId || !tenantId) {
+    return res.status(400).json({ error: 'Microsoft integration not configured. Set Client ID and Tenant ID in the Integrations tab.' });
+  }
+
+  try {
+    const dcRes = await fetch(`${MICROSOFT_AUTH_URL}/${tenantId}/oauth2/v2.0/devicecode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: clientId,
+        scope: 'https://outlook.office.com/IMAP.AccessAsUser.All https://outlook.office.com/SMTP.Send offline_access openid email profile',
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const dc = await dcRes.json();
+    if (!dcRes.ok) {
+      throw new Error(dc.error_description || dc.error || 'Failed to start device code flow');
+    }
+
+    deviceFlows.set(req.session.userId, {
+      deviceCode: dc.device_code,
+      tenantId,
+      clientId,
+      expiresAt: Date.now() + dc.expires_in * 1000,
+    });
+
+    res.json({
+      userCode: dc.user_code,
+      verificationUri: dc.verification_uri,
+      expiresIn: dc.expires_in,
+      interval: dc.interval || 5,
+    });
+  } catch (err) {
+    console.error('Device code init error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Step 2: poll for token — called repeatedly by the frontend until resolved.
+router.get('/microsoft/device/poll', async (req, res) => {
+  if (!req.session?.userId) return res.status(401).json({ error: 'Not authenticated' });
+  const flow = deviceFlows.get(req.session.userId);
+  if (!flow) return res.status(400).json({ status: 'error', error: 'No pending device code flow' });
+  if (Date.now() > flow.expiresAt) {
+    deviceFlows.delete(req.session.userId);
+    return res.json({ status: 'expired' });
+  }
+
+  try {
+    const tokenRes = await fetch(`${MICROSOFT_AUTH_URL}/${flow.tenantId}/oauth2/v2.0/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: flow.clientId,
+        grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
+        device_code: flow.deviceCode,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const tokens = await tokenRes.json();
+
+    if (tokens.error === 'authorization_pending') return res.json({ status: 'pending' });
+    if (tokens.error === 'authorization_declined') {
+      deviceFlows.delete(req.session.userId);
+      return res.json({ status: 'declined' });
+    }
+    if (tokens.error === 'expired_token') {
+      deviceFlows.delete(req.session.userId);
+      return res.json({ status: 'expired' });
+    }
+    if (!tokenRes.ok) {
+      deviceFlows.delete(req.session.userId);
+      return res.json({ status: 'error', error: tokens.error_description || tokens.error || 'Token exchange failed' });
+    }
+
+    deviceFlows.delete(req.session.userId);
+    await processMicrosoftTokens(req.session.userId, tokens, { tenantId: flow.tenantId, clientId: flow.clientId });
+    res.json({ status: 'success' });
+  } catch (err) {
+    console.error('Device code poll error:', err.message);
+    deviceFlows.delete(req.session.userId);
+    res.json({ status: 'error', error: err.message });
   }
 });
 

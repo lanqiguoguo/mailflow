@@ -424,6 +424,7 @@
       "presetGmail": "Gmail",
       "presetYahoo": "Yahoo Mail",
       "presetIcloud": "iCloud",
+      "presetMicrosoft": "Outlook",
       "presetCustom": "Custom",
       "errorRequired": "Email, username, and IMAP host are required",
       "errorPasswordRequired": "Password is required for new accounts",
@@ -781,7 +782,18 @@
         "save": "Save configuration",
         "savedNote": "Configuration saved. Click \"Connect account\" to authorize.",
         "connectedNote": "Microsoft 365 account connected successfully! Check the Accounts tab.",
-        "remove": "Remove"
+        "remove": "Remove",
+        "deviceCodeTitle": "Connect with device code",
+        "deviceCodeNote": "No redirect URI or client secret needed. In Azure, go to Authentication and set 'Allow public client flows' to Yes. Best for personal Outlook.com / Hotmail accounts.",
+        "deviceCodeStart": "Start device code flow",
+        "deviceCodeInstructions": "Visit the link below on any device and enter the code to authorize MailFlow:",
+        "deviceCodeVisit": "Visit:",
+        "deviceCodeEnter": "Enter code:",
+        "deviceCodeWaiting": "Waiting for authorization…",
+        "deviceCodeExpired": "Code expired. Click start again.",
+        "deviceCodeDeclined": "Authorization was declined.",
+        "deviceCodeError": "An error occurred. Please try again.",
+        "deviceCodeCancel": "Cancel"
       }
     },
     "ssoLinked": {

@@ -121,6 +121,16 @@ export const api = {
   getIntegrations: () => request('GET', '/integrations'),
   saveIntegration: (provider, config) => request('POST', `/integrations/${provider}`, config),
   deleteIntegration: (provider) => request('DELETE', `/integrations/${provider}`),
+  startMsDeviceFlow: async () => {
+    const res = await fetch('/oauth/microsoft/device', { method: 'POST', credentials: 'include' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to start device code flow');
+    return data;
+  },
+  pollMsDeviceFlow: async () => {
+    const res = await fetch('/oauth/microsoft/device/poll', { credentials: 'include' });
+    return res.json();
+  },
 
   // Sync
   syncNow: (accountId) => request('POST', '/mail/sync', accountId ? { accountId } : {}),

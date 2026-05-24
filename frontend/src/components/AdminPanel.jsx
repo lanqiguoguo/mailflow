@@ -37,13 +37,12 @@ const COLORS = [
 ];
 
 // ─── IMAP presets ─────────────────────────────────────────────────────────────
-// Note: Microsoft 365 / Outlook is intentionally excluded here — it requires
-// OAuth2 (not app passwords) and is handled via the Integrations tab instead.
 const PRESETS = {
-  gmail:   { label: 'Gmail',   imap_host: 'imap.gmail.com',        imap_port: 993, smtp_host: 'smtp.gmail.com',        smtp_port: 587 },
-  yahoo:   { label: 'Yahoo',   imap_host: 'imap.mail.yahoo.com',   imap_port: 993, smtp_host: 'smtp.mail.yahoo.com',   smtp_port: 587 },
-  icloud:  { label: 'iCloud',  imap_host: 'imap.mail.me.com',      imap_port: 993, smtp_host: 'smtp.mail.me.com',      smtp_port: 587 },
-  custom:  { label: 'Custom' },
+  gmail:     { label: 'Gmail',   imap_host: 'imap.gmail.com',        imap_port: 993, smtp_host: 'smtp.gmail.com',        smtp_port: 587 },
+  yahoo:     { label: 'Yahoo',   imap_host: 'imap.mail.yahoo.com',   imap_port: 993, smtp_host: 'smtp.mail.yahoo.com',   smtp_port: 587 },
+  icloud:    { label: 'iCloud',  imap_host: 'imap.mail.me.com',      imap_port: 993, smtp_host: 'smtp.mail.me.com',      smtp_port: 587 },
+  microsoft: { label: 'Outlook', oauth: true },
+  custom:    { label: 'Custom' },
 };
 
 // ─── Account Form (Add or Edit) ───────────────────────────────────────────────
@@ -70,6 +69,7 @@ function AccountForm({ initial, onSave, onCancel }) {
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }));
 
   const handlePreset = (key) => {
+    if (key === 'microsoft') { setAdminTab('integrations'); onCancel(); return; }
     const p = PRESETS[key];
     if (p.imap_host) setForm(f => ({ ...f, ...p, label: undefined }));
     setSelectedPreset(key);
@@ -101,7 +101,7 @@ function AccountForm({ initial, onSave, onCancel }) {
         <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
           {Object.entries(PRESETS).map(([key, p]) => {
             const active = selectedPreset === key;
-            const presetLabel = key === 'gmail' ? t('admin.accounts.presetGmail') : key === 'yahoo' ? t('admin.accounts.presetYahoo') : key === 'icloud' ? t('admin.accounts.presetIcloud') : t('admin.accounts.presetCustom');
+            const presetLabel = key === 'gmail' ? t('admin.accounts.presetGmail') : key === 'yahoo' ? t('admin.accounts.presetYahoo') : key === 'icloud' ? t('admin.accounts.presetIcloud') : key === 'microsoft' ? t('admin.accounts.presetMicrosoft') : t('admin.accounts.presetCustom');
             return (
               <button key={key} onClick={() => handlePreset(key)} style={{
                 padding: '5px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
@@ -269,11 +269,12 @@ function AccountForm({ initial, onSave, onCancel }) {
       )}
 
       <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-        <button onClick={handleSubmit} disabled={saving} style={{
+        <button onClick={handleSubmit} disabled={saving || (!isEdit && isMicrosoftImapHost(form.imap_host))} style={{
           flex: 1, padding: '10px', background: 'var(--accent)',
           border: 'none', borderRadius: 8, color: 'white',
-          fontSize: 13, fontWeight: 500, cursor: saving ? 'not-allowed' : 'pointer',
-          opacity: saving ? 0.7 : 1,
+          fontSize: 13, fontWeight: 500,
+          cursor: (saving || (!isEdit && isMicrosoftImapHost(form.imap_host))) ? 'not-allowed' : 'pointer',
+          opacity: (saving || (!isEdit && isMicrosoftImapHost(form.imap_host))) ? 0.4 : 1,
         }}>
           {saving ? t('admin.accounts.saving') : (isEdit ? t('admin.accounts.saveChanges') : t('admin.accounts.addAccount'))}
         </button>
@@ -1562,6 +1563,9 @@ function IntegrationsTab() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [connectingMs, setConnectingMs] = useState(false);
+  const [deviceFlow, setDeviceFlow] = useState(null); // { userCode, verificationUri, interval }
+  const [deviceStatus, setDeviceStatus] = useState(null); // 'pending'|'success'|'declined'|'expired'|'error'
+  const devicePollRef = useRef(null);
 
   useEffect(() => {
     api.getIntegrations()
@@ -1597,12 +1601,15 @@ function IntegrationsTab() {
       }
     };
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    return () => {
+      window.removeEventListener('message', handleMessage);
+      if (devicePollRef.current) clearInterval(devicePollRef.current);
+    };
   }, []);
 
   const handleSaveMs = async () => {
-    if (!msForm.clientId || !msForm.tenantId || !msForm.redirectUri) {
-      setSaveMsg('Client ID, Tenant ID, and Redirect URI are required');
+    if (!msForm.clientId || !msForm.tenantId) {
+      setSaveMsg('Client ID and Tenant ID are required');
       return;
     }
     setSaving(true);
@@ -1620,6 +1627,43 @@ function IntegrationsTab() {
       setSaveMsg('Error: ' + err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const stopDeviceFlow = () => {
+    if (devicePollRef.current) { clearInterval(devicePollRef.current); devicePollRef.current = null; }
+    setDeviceFlow(null);
+    setDeviceStatus(null);
+  };
+
+  const handleStartDeviceFlow = async () => {
+    stopDeviceFlow();
+    setDeviceStatus('pending');
+    try {
+      const data = await api.startMsDeviceFlow();
+      setDeviceFlow(data);
+      const intervalMs = (data.interval || 5) * 1000;
+      devicePollRef.current = setInterval(async () => {
+        try {
+          const result = await api.pollMsDeviceFlow();
+          if (result.status === 'pending') return;
+          clearInterval(devicePollRef.current);
+          devicePollRef.current = null;
+          setDeviceStatus(result.status);
+          if (result.status === 'success') {
+            setSaveMsg(t('admin.integrations.microsoft.connectedNote'));
+            api.getAccounts().then(setAccounts).catch(console.error);
+            setTimeout(stopDeviceFlow, 3000);
+          }
+        } catch (err) {
+          clearInterval(devicePollRef.current);
+          devicePollRef.current = null;
+          setDeviceStatus('error');
+        }
+      }, intervalMs);
+    } catch (err) {
+      setDeviceStatus('error');
+      setSaveMsg('Error: ' + err.message);
     }
   };
 
@@ -1821,6 +1865,7 @@ function IntegrationsTab() {
 
                   {msConfigured && (
                     <button onClick={async () => {
+                      stopDeviceFlow();
                       await api.deleteIntegration('microsoft');
                       setConfigs(c => { const n = {...c}; delete n.microsoft; return n; });
                       setMsForm({ clientId: '', clientSecret: '', tenantId: '', redirectUri: '' });
@@ -1836,6 +1881,95 @@ function IntegrationsTab() {
                     >
                       {t('admin.integrations.microsoft.remove')}
                     </button>
+                  )}
+                </div>
+
+                {/* Device code flow */}
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border-subtle)' }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
+                    {t('admin.integrations.microsoft.deviceCodeTitle')}
+                  </div>
+                  <div style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 10, lineHeight: 1.5 }}>
+                    {t('admin.integrations.microsoft.deviceCodeNote')}
+                  </div>
+
+                  {!deviceFlow && (
+                    <button
+                      onClick={handleStartDeviceFlow}
+                      disabled={!msConfigured}
+                      title={!msConfigured ? t('admin.integrations.microsoft.save') : ''}
+                      style={{
+                        padding: '8px 14px', background: 'var(--bg-elevated)',
+                        border: '1px solid var(--border)', borderRadius: 8,
+                        color: msConfigured ? 'var(--text-primary)' : 'var(--text-tertiary)',
+                        cursor: msConfigured ? 'pointer' : 'not-allowed',
+                        fontSize: 12, fontWeight: 500, opacity: msConfigured ? 1 : 0.5,
+                      }}
+                    >
+                      {t('admin.integrations.microsoft.deviceCodeStart')}
+                    </button>
+                  )}
+
+                  {deviceFlow && (
+                    <div style={{
+                      padding: '14px 16px', borderRadius: 8,
+                      background: 'var(--bg-elevated)', border: '1px solid var(--border)',
+                    }}>
+                      {deviceStatus === 'success' ? (
+                        <div style={{ color: 'var(--green)', fontSize: 13, fontWeight: 500 }}>
+                          {t('admin.integrations.microsoft.connectedNote')}
+                        </div>
+                      ) : deviceStatus === 'declined' ? (
+                        <div style={{ color: 'var(--red)', fontSize: 13 }}>{t('admin.integrations.microsoft.deviceCodeDeclined')}</div>
+                      ) : deviceStatus === 'expired' ? (
+                        <div style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>{t('admin.integrations.microsoft.deviceCodeExpired')}</div>
+                      ) : deviceStatus === 'error' ? (
+                        <div style={{ color: 'var(--red)', fontSize: 13 }}>{t('admin.integrations.microsoft.deviceCodeError')}</div>
+                      ) : (
+                        <>
+                          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10 }}>
+                            {t('admin.integrations.microsoft.deviceCodeInstructions')}
+                          </div>
+                          <div style={{ marginBottom: 8 }}>
+                            <span style={{ fontSize: 11, color: 'var(--text-tertiary)', marginRight: 6 }}>
+                              {t('admin.integrations.microsoft.deviceCodeVisit')}
+                            </span>
+                            <a href={deviceFlow.verificationUri} target="_blank" rel="noreferrer"
+                              style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 500 }}>
+                              {deviceFlow.verificationUri}
+                            </a>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                            <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+                              {t('admin.integrations.microsoft.deviceCodeEnter')}
+                            </span>
+                            <span style={{
+                              fontFamily: 'JetBrains Mono, monospace', fontSize: 20, fontWeight: 700,
+                              letterSpacing: '0.15em', color: 'var(--text-primary)',
+                              padding: '6px 14px', background: 'var(--bg-tertiary)',
+                              border: '1px solid var(--border)', borderRadius: 6,
+                            }}>
+                              {deviceFlow.userCode}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: 'spin 1.5s linear infinite' }}>
+                              <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                            </svg>
+                            {t('admin.integrations.microsoft.deviceCodeWaiting')}
+                          </div>
+                        </>
+                      )}
+                      {deviceStatus !== 'success' && (
+                        <button onClick={stopDeviceFlow} style={{
+                          marginTop: 10, padding: '5px 10px', background: 'transparent',
+                          border: '1px solid var(--border)', borderRadius: 6,
+                          color: 'var(--text-tertiary)', cursor: 'pointer', fontSize: 11,
+                        }}>
+                          {t('admin.integrations.microsoft.deviceCodeCancel')}
+                        </button>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

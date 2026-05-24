@@ -378,6 +378,7 @@
       "presetGmail": "Gmail",
       "presetYahoo": "Yahoo Mail",
       "presetIcloud": "iCloud",
+      "presetMicrosoft": "Outlook",
       "presetCustom": "自定义",
       "errorRequired": "邮箱地址、用户名和 IMAP 服务器为必填项",
       "errorPasswordRequired": "添加新账户时必须填写密码",
@@ -702,7 +703,18 @@
         "save": "保存配置",
         "savedNote": "配置已保存。点击「连接账户」以进行授权。",
         "connectedNote": "Microsoft 365 账户连接成功！请前往「账户」选项卡查看。",
-        "remove": "移除"
+        "remove": "移除",
+        "deviceCodeTitle": "使用设备码连接",
+        "deviceCodeNote": "无需重定向 URI 或客户端密钥。在 Azure 中，前往「身份验证」并将「允许公共客户端流」设置为「是」。最适合 Outlook.com / Hotmail 个人账户。",
+        "deviceCodeStart": "启动设备码流程",
+        "deviceCodeInstructions": "在任意设备上访问以下链接，输入代码以授权 MailFlow：",
+        "deviceCodeVisit": "访问：",
+        "deviceCodeEnter": "输入代码：",
+        "deviceCodeWaiting": "等待授权中…",
+        "deviceCodeExpired": "代码已过期，请重新开始。",
+        "deviceCodeDeclined": "授权被拒绝。",
+        "deviceCodeError": "发生错误，请重试。",
+        "deviceCodeCancel": "取消"
       }
     },
     "ssoLinked": {

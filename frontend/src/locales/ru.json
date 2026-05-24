@@ -420,6 +420,7 @@
       "presetGmail": "Gmail",
       "presetYahoo": "Yahoo Mail",
       "presetIcloud": "iCloud",
+      "presetMicrosoft": "Outlook",
       "presetCustom": "Другое",
       "errorRequired": "Требуются адрес электронной почты, имя пользователя и IMAP-сервер",
       "errorPasswordRequired": "Для новых аккаунтов требуется пароль",
@@ -744,7 +745,18 @@
         "save": "Сохранить конфигурацию",
         "savedNote": "Конфигурация сохранена. Нажмите «Подключить аккаунт», чтобы авторизоваться.",
         "connectedNote": "Аккаунт Microsoft 365 успешно подключён! Проверьте вкладку «Аккаунты».",
-        "remove": "Удалить"
+        "remove": "Удалить",
+        "deviceCodeTitle": "Подключить через код устройства",
+        "deviceCodeNote": "URI перенаправления и client secret не требуются. В Azure перейдите в Аутентификацию и включите 'Разрешить потоки общедоступных клиентов'. Лучший вариант для личных аккаунтов Outlook.com / Hotmail.",
+        "deviceCodeStart": "Начать поток кода устройства",
+        "deviceCodeInstructions": "Перейдите по ссылке ниже на любом устройстве и введите код для авторизации MailFlow:",
+        "deviceCodeVisit": "Перейдите:",
+        "deviceCodeEnter": "Введите код:",
+        "deviceCodeWaiting": "Ожидание авторизации…",
+        "deviceCodeExpired": "Код истёк. Начните заново.",
+        "deviceCodeDeclined": "Авторизация была отклонена.",
+        "deviceCodeError": "Произошла ошибка. Повторите попытку.",
+        "deviceCodeCancel": "Отмена"
       }
     },
     "ssoLinked": {
