@@ -267,7 +267,8 @@
     "folders": {
       "back": "Sposta nella cartella",
       "loading": "Caricamento cartelle…",
-      "empty": "Nessuna cartella trovata"
+      "empty": "Nessuna cartella trovata",
+      "recent": "Recenti"
     }
   },
   "commandPalette": {

@@ -380,6 +380,20 @@ export const useStore = create((set, get) => ({
     schedulePrefSave({ favoriteFolders: next });
   },
 
+  // Recent move-to folders — [{ accountId, path }, ...] most-recent first, capped at 5
+  recentFolders: (() => {
+    try { return JSON.parse(localStorage.getItem('mailflow_recent_folders') || '[]'); }
+    catch (_) { return []; }
+  })(),
+  recordRecentFolder: ({ accountId, path }) => {
+    const prev = get().recentFolders;
+    const deduped = prev.filter(f => !(f.accountId === accountId && f.path === path));
+    const next = [{ accountId, path }, ...deduped].slice(0, 5);
+    localStorage.setItem('mailflow_recent_folders', JSON.stringify(next));
+    set({ recentFolders: next });
+    schedulePrefSave({ recentFolders: next });
+  },
+
   // Fetch server preferences and apply them — call after any successful login.
   // Sets localStorage so subsequent page loads apply the right values instantly.
   loadPreferences: async () => {
@@ -443,6 +457,10 @@ export const useStore = create((set, get) => ({
       if (Array.isArray(prefs.favoriteFolders)) {
         localStorage.setItem('mailflow_favorite_folders', JSON.stringify(prefs.favoriteFolders));
         set({ favoriteFolders: prefs.favoriteFolders });
+      }
+      if (Array.isArray(prefs.recentFolders)) {
+        localStorage.setItem('mailflow_recent_folders', JSON.stringify(prefs.recentFolders));
+        set({ recentFolders: prefs.recentFolders });
       }
       if (prefs.language) {
         localStorage.setItem('mailflow_language', prefs.language);

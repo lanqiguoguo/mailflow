@@ -269,7 +269,8 @@
     "folders": {
       "back": "Move to folder",
       "loading": "Loading folders…",
-      "empty": "No folders found"
+      "empty": "No folders found",
+      "recent": "Recent"
     }
   },
   "commandPalette": {

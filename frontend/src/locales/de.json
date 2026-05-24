@@ -268,7 +268,8 @@
     "folders": {
       "back": "In Ordner verschieben",
       "loading": "Ordner werden geladen…",
-      "empty": "Keine Ordner gefunden"
+      "empty": "Keine Ordner gefunden",
+      "recent": "Zuletzt verwendet"
     }
   },
   "commandPalette": {

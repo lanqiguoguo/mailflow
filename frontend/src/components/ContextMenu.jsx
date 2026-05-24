@@ -164,6 +164,7 @@ function HeaderModal({ messageId, subject, onClose }) {
 // ─── Context Menu ─────────────────────────────────────────────────────────────
 export default function ContextMenu({ x, y, message, onClose, onAction }) {
   const { t } = useTranslation();
+  const recentFolders = useStore(s => s.recentFolders);
   const menuRef = useRef(null);
   const [showHeaderModal, setShowHeaderModal] = useState(false);
   const [moveView, setMoveView] = useState(false);
@@ -527,17 +528,41 @@ export default function ContextMenu({ x, y, message, onClose, onAction }) {
                 <div style={{ padding: '12px 14px', color: 'var(--text-tertiary)', fontSize: 12 }}>
                   {t('contextMenu.folders.empty')}
                 </div>
-              ) : (
-                (moveFolders || [])
-                  .filter(f => f.path !== message.folder)
-                  .map(folder => (
-                    <FolderMenuItem
-                      key={folder.path}
-                      folder={folder}
-                      onClick={() => { onAction('moveTo', folder.path); onClose(); }}
-                    />
-                  ))
-              )}
+              ) : (() => {
+                const recentForAccount = recentFolders
+                  .filter(r => r.accountId === message.account_id && r.path !== message.folder)
+                  .map(r => (moveFolders || []).find(f => f.path === r.path))
+                  .filter(Boolean);
+                return (
+                  <>
+                    {recentForAccount.length > 0 && (
+                      <>
+                        <div style={{ padding: '5px 14px 3px', color: 'var(--text-tertiary)', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          {t('contextMenu.folders.recent')}
+                        </div>
+                        {recentForAccount.map(folder => (
+                          <FolderMenuItem
+                            key={`recent-${folder.path}`}
+                            folder={folder}
+                            onClick={() => { onAction('moveTo', folder.path); onClose(); }}
+                          />
+                        ))}
+                        <div style={{ height: 1, background: 'var(--border-subtle)', margin: '3px 0' }} />
+                      </>
+                    )}
+                    {(moveFolders || [])
+                      .filter(f => f.path !== message.folder)
+                      .map(folder => (
+                        <FolderMenuItem
+                          key={folder.path}
+                          folder={folder}
+                          onClick={() => { onAction('moveTo', folder.path); onClose(); }}
+                        />
+                      ))
+                    }
+                  </>
+                );
+              })()}
             </div>
           </>
         ) : (

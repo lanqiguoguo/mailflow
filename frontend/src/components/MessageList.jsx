@@ -1020,6 +1020,8 @@ export default function MessageList() {
         if (failedMsgs.length > 0) {
           useStore.getState().restoreMessages(failedMsgs);
           addNotification({ title: t('messageList.bulkMoved.failTitle'), body: t('messageList.bulkMoved.failBody', { count: failedMsgs.length }) });
+        } else if (msgs[0]?.account_id) {
+          useStore.getState().recordRecentFolder({ accountId: msgs[0].account_id, path: folder });
         }
       } catch (err) {
         console.error('Bulk move failed:', err);
@@ -1433,6 +1435,7 @@ export default function MessageList() {
           if (moveUndone) return;
           try {
             await api.bulkMove(moveIds, folder);
+            useStore.getState().recordRecentFolder({ accountId: moved.account_id, path: folder });
           } catch (err) {
             console.error('Move failed:', err.message);
             addNotification({ title: t('message.moved.failTitle'), body: t('message.moved.failBody') });

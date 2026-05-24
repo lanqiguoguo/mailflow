@@ -267,7 +267,8 @@
     "folders": {
       "back": "Déplacer vers un dossier",
       "loading": "Chargement des dossiers…",
-      "empty": "Aucun dossier trouvé"
+      "empty": "Aucun dossier trouvé",
+      "recent": "Récents"
     }
   },
   "commandPalette": {
