@@ -312,6 +312,7 @@ export default function Sidebar() {
   // Drag-and-drop state for favorites reorder
   const [favDragIdx, setFavDragIdx] = useState(null);
   const [favDropIdx, setFavDropIdx] = useState(null);
+  const favLongPressTimer = useRef(null);
 
   // Inline create folder
   const [creatingFolder, setCreatingFolder] = useState(null); // {accountId}
@@ -798,6 +799,7 @@ export default function Sidebar() {
                 return (
                   <div
                     key={`${accountId}:${path}`}
+                    className="no-callout"
                     onDragOver={canDrag ? e => { e.preventDefault(); setFavDropIdx(idx); } : undefined}
                     onDrop={canDrag ? e => {
                       e.preventDefault();
@@ -818,11 +820,37 @@ export default function Sidebar() {
                     } : undefined}
                     onDragEnd={canDrag ? () => { setFavDragIdx(null); setFavDropIdx(null); } : undefined}
                     onClick={() => { if (!isRenamingThis) setSelectedAccount(accountId, path); }}
+                    onTouchStart={e => {
+                      if (!folderObj || isRenamingThis) return;
+                      const touch = e.touches[0];
+                      const x = touch.clientX;
+                      const y = touch.clientY;
+                      favLongPressTimer.current = setTimeout(() => {
+                        favLongPressTimer.current = null;
+                        window.getSelection()?.removeAllRanges();
+                        setFolderCtxMenu({ x, y, accountId, folderObj });
+                        setAccountCtxMenu(null);
+                      }, 500);
+                    }}
+                    onTouchMove={() => {
+                      clearTimeout(favLongPressTimer.current);
+                      favLongPressTimer.current = null;
+                    }}
+                    onTouchEnd={() => {
+                      clearTimeout(favLongPressTimer.current);
+                      favLongPressTimer.current = null;
+                    }}
+                    onTouchCancel={() => {
+                      clearTimeout(favLongPressTimer.current);
+                      favLongPressTimer.current = null;
+                    }}
                     onContextMenu={e => {
                       e.preventDefault();
                       e.stopPropagation();
-                      if (folderObj) {
+                      // Desktop right-click only — touch long-press is handled by onTouchStart above
+                      if (e.pointerType !== 'touch' && folderObj) {
                         setFolderCtxMenu({ x: e.clientX, y: e.clientY, accountId, folderObj });
+                        setAccountCtxMenu(null);
                       }
                     }}
                     style={{
@@ -834,7 +862,6 @@ export default function Sidebar() {
                       transition: 'background 0.1s, color 0.1s',
                       opacity: isDragging ? 0.4 : 1,
                       borderTop: isDropTarget ? '2px solid var(--accent)' : '2px solid transparent',
-                      WebkitTouchCallout: 'none', userSelect: 'none',
                     }}
                     onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-tertiary)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
                     onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; } }}
