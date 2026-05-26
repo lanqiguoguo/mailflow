@@ -485,7 +485,10 @@
       "layout": "Layout",
       "layoutDescription": "Choose how the sidebar, message list, and reading pane are arranged",
       "language": "Language",
-      "languageDescription": "Choose the display language for the interface"
+      "languageDescription": "Choose the display language for the interface",
+      "fontSize": "Font Size",
+      "fontSizeDescription": "Scale the interface text. 100% is the default.",
+      "fontSizeReset": "Reset to 100%"
     },
     "messageList": {
       "title": "Message List",

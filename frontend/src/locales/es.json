@@ -481,7 +481,10 @@
       "layout": "Diseño",
       "layoutDescription": "Elige cómo se organizan la barra lateral, la lista de mensajes y el panel de lectura",
       "language": "Idioma",
-      "languageDescription": "Elige el idioma de visualización de la interfaz"
+      "languageDescription": "Elige el idioma de visualización de la interfaz",
+      "fontSize": "Tamaño de fuente",
+      "fontSizeDescription": "Escala el texto de la interfaz. El 100 % es el valor predeterminado.",
+      "fontSizeReset": "Restablecer al 100 %"
     },
     "messageList": {
       "title": "Lista de mensajes",

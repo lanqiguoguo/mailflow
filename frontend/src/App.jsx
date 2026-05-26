@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useStore } from './store/index.js';
 import { api } from './utils/api.js';
 import { applyTheme } from './themes.js';
-import { applyFontSet } from './fonts.js'; // still used for the instant localStorage apply on mount
+import { applyFontSet, applyFontSize } from './fonts.js'; // still used for the instant localStorage apply on mount
 import { applyLayout } from './layouts.js';
 import LoginPage from './components/LoginPage.jsx';
 import MailApp from './components/MailApp.jsx';
@@ -32,6 +32,7 @@ export default function App() {
     // Apply localStorage immediately so there's no flash while we check auth
     applyTheme(localStorage.getItem('mailflow_theme') || 'dark');
     applyFontSet(localStorage.getItem('mailflow_font') || 'default');
+    applyFontSize(parseInt(localStorage.getItem('mailflow_font_size')) || 100);
     applyLayout(localStorage.getItem('mailflow_layout') || 'classic');
 
     // Handle OAuth popup callback

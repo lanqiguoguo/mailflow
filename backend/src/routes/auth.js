@@ -349,7 +349,7 @@ router.patch('/preferences', async (req, res) => {
   const { theme, font, layout, notificationSound, pageSize, scrollMode, syncInterval,
           blockRemoteImages, imageWhitelist, shortcuts, hiddenFolders, language,
           threadedView, plaintextEmail, hoverQuickActions, swipeActions,
-          expandedAccounts, collapsedFolders, favoriteFolders, recentFolders } = req.body;
+          expandedAccounts, collapsedFolders, favoriteFolders, recentFolders, fontSize } = req.body;
   // JSONB fields must be serialised to strings for the ::jsonb cast
   const imageWhitelistJson    = imageWhitelist    != null ? JSON.stringify(imageWhitelist)    : null;
   const shortcutsJson         = shortcuts         != null ? JSON.stringify(shortcuts)         : null;
@@ -359,6 +359,7 @@ router.patch('/preferences', async (req, res) => {
   const collapsedFoldersJson  = collapsedFolders  != null ? JSON.stringify(collapsedFolders)  : null;
   const favoriteFoldersJson   = favoriteFolders   != null ? JSON.stringify(favoriteFolders)   : null;
   const recentFoldersJson     = recentFolders     != null ? JSON.stringify(recentFolders)     : null;
+  const fontSizeVal           = fontSize          != null ? String(fontSize)                  : null;
   await query(`
     UPDATE users
     SET preferences = preferences
@@ -382,12 +383,13 @@ router.patch('/preferences', async (req, res) => {
       || CASE WHEN $19::jsonb IS NOT NULL THEN jsonb_build_object('collapsedFolders', $19::jsonb) ELSE '{}'::jsonb END
       || CASE WHEN $20::jsonb IS NOT NULL THEN jsonb_build_object('favoriteFolders', $20::jsonb) ELSE '{}'::jsonb END
       || CASE WHEN $21::jsonb IS NOT NULL THEN jsonb_build_object('recentFolders', $21::jsonb) ELSE '{}'::jsonb END
+      || CASE WHEN $22::text IS NOT NULL THEN jsonb_build_object('fontSize', $22::text) ELSE '{}'::jsonb END
     WHERE id = $1
   `, [req.session.userId, theme ?? null, font ?? null, layout ?? null, notificationSound ?? null,
       pageSize ?? null, scrollMode ?? null, syncInterval ?? null,
       blockRemoteImages ?? null, imageWhitelistJson, shortcutsJson, hiddenFoldersJson,
       language ?? null, threadedView ?? null, plaintextEmail ?? null, hoverQuickActions ?? null,
-      swipeActionsJson, expandedAccountsJson, collapsedFoldersJson, favoriteFoldersJson, recentFoldersJson]);
+      swipeActionsJson, expandedAccountsJson, collapsedFoldersJson, favoriteFoldersJson, recentFoldersJson, fontSizeVal]);
 
   if (syncInterval != null) {
     const ms = parseInt(syncInterval) * 1000;

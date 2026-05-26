@@ -481,7 +481,10 @@
       "layout": "Layout",
       "layoutDescription": "Scegli come sono disposti la barra laterale, l'elenco messaggi e il riquadro di lettura",
       "language": "Lingua",
-      "languageDescription": "Scegli la lingua di visualizzazione dell'interfaccia"
+      "languageDescription": "Scegli la lingua di visualizzazione dell'interfaccia",
+      "fontSize": "Dimensione del testo",
+      "fontSizeDescription": "Ridimensiona il testo dell'interfaccia. Il valore predefinito è 100%.",
+      "fontSizeReset": "Ripristina al 100%"
     },
     "messageList": {
       "title": "Elenco messaggi",

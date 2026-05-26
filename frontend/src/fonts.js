@@ -453,3 +453,10 @@ export function applyFontSet(fontKey) {
   }
   loadFontSet(fontKey);
 }
+
+// Apply a font size percentage (80–130) via CSS zoom on the root element.
+// zoom scales everything uniformly including px-specified values.
+// Setting to 100 removes the inline override so no zoom is applied.
+export function applyFontSize(pct) {
+  document.documentElement.style.zoom = pct === 100 ? '' : String(pct / 100);
+}

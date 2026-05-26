@@ -441,7 +441,10 @@
       "layout": "Layout",
       "layoutDescription": "Anordnung von Seitenleiste, Nachrichtenliste und Lesebereich auswählen",
       "language": "Sprache",
-      "languageDescription": "Anzeigesprache der Oberfläche auswählen"
+      "languageDescription": "Anzeigesprache der Oberfläche auswählen",
+      "fontSize": "Schriftgröße",
+      "fontSizeDescription": "Skaliert den Text der Oberfläche. 100 % ist der Standard.",
+      "fontSizeReset": "Auf 100 % zurücksetzen"
     },
     "messageList": {
       "title": "Nachrichtenliste",

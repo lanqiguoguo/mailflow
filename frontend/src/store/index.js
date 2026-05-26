@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { api } from '../utils/api.js';
 import { applyTheme } from '../themes.js';
-import { applyFontSet } from '../fonts.js';
+import { applyFontSet, applyFontSize } from '../fonts.js';
 import { applyLayout } from '../layouts.js';
 import i18n from '../i18n.js';
 
@@ -264,6 +264,14 @@ export const useStore = create((set, get) => ({
     schedulePrefSave({ font: fontSet });
   },
 
+  fontSize: parseInt(localStorage.getItem('mailflow_font_size')) || 100,
+  setFontSize: (pct) => {
+    localStorage.setItem('mailflow_font_size', String(pct));
+    set({ fontSize: pct });
+    applyFontSize(pct);
+    schedulePrefSave({ fontSize: String(pct) });
+  },
+
   // Layout
   layout: localStorage.getItem('mailflow_layout') || 'classic',
   setLayout: (layout) => {
@@ -408,6 +416,12 @@ export const useStore = create((set, get) => ({
         localStorage.setItem('mailflow_font', prefs.font);
         set({ fontSet: prefs.font });
         applyFontSet(prefs.font);
+      }
+      if (prefs.fontSize) {
+        const n = parseInt(prefs.fontSize) || 100;
+        localStorage.setItem('mailflow_font_size', String(n));
+        set({ fontSize: n });
+        applyFontSize(n);
       }
       if (prefs.layout) {
         localStorage.setItem('mailflow_layout', prefs.layout);

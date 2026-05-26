@@ -990,7 +990,7 @@ function IconBtn({ children, onClick, title, danger, disabled }) {
 // ─── Fonts Tab ───────────────────────────────────────────────────────────────
 function FontsTab() {
   const { t } = useTranslation();
-  const { fontSet, setFontSet } = useStore();
+  const { fontSet, setFontSet, fontSize, setFontSize } = useStore();
   const [fontsReady, setFontsReady] = useState(false);
 
   const handleSelect = (key) => {
@@ -1015,6 +1015,44 @@ function FontsTab() {
 
   return (
     <div>
+      {/* Font size */}
+      <div style={{ marginBottom: 32 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
+            {t('admin.appearance.fontSize')}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--accent)' }}>{fontSize}%</div>
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 14 }}>
+          {t('admin.appearance.fontSizeDescription')}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 11, color: 'var(--text-tertiary)', minWidth: 28 }}>80%</span>
+          <input
+            type="range"
+            min={80}
+            max={130}
+            step={5}
+            value={fontSize}
+            onChange={e => setFontSize(parseInt(e.target.value))}
+            style={{ flex: 1, accentColor: 'var(--accent)', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: 11, color: 'var(--text-tertiary)', minWidth: 32, textAlign: 'right' }}>130%</span>
+        </div>
+        {fontSize !== 100 && (
+          <button
+            onClick={() => setFontSize(100)}
+            style={{
+              marginTop: 8, fontSize: 12, color: 'var(--text-secondary)',
+              background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+            }}
+          >
+            {t('admin.appearance.fontSizeReset')}
+          </button>
+        )}
+      </div>
+
+      {/* Typography */}
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 4 }}>
         <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>
           {t('admin.appearance.typography')}

@@ -481,7 +481,10 @@
       "layout": "Disposition",
       "layoutDescription": "Choisissez comment la barre latérale, la liste des messages et le volet de lecture sont disposés",
       "language": "Langue",
-      "languageDescription": "Choisissez la langue d'affichage de l'interface"
+      "languageDescription": "Choisissez la langue d'affichage de l'interface",
+      "fontSize": "Taille de police",
+      "fontSizeDescription": "Redimensionne le texte de l'interface. 100 % est la valeur par défaut.",
+      "fontSizeReset": "Réinitialiser à 100 %"
     },
     "messageList": {
       "title": "Liste des messages",
