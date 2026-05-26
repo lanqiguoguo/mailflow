@@ -543,7 +543,15 @@
       "customUpload": "上传音频文件",
       "customChange": "更换文件",
       "customButton": "上传",
-      "uploadError": "文件须小于 2 MB。"
+      "uploadError": "文件须小于 2 MB。",
+      "badgeTitle": "未读徽标",
+      "badgeDescription": "控制未读数量的显示位置。",
+      "appBadge": "应用图标徽标",
+      "appBadgeDesc": "在任务栏或 Dock 图标上显示未读数（PWA）。",
+      "faviconBadge": "浏览器标签徽标",
+      "faviconBadgeDesc": "在浏览器标签图标上显示未读数。",
+      "badgeOn": "已启用",
+      "badgeOff": "已禁用"
     },
     "push": {
       "title": "推送通知",

@@ -501,7 +501,15 @@
       "customUpload": "Audiodatei hochladen",
       "customChange": "Datei ändern",
       "customButton": "Hochladen",
-      "uploadError": "Datei muss unter 2 MB sein."
+      "uploadError": "Datei muss unter 2 MB sein.",
+      "badgeTitle": "Ungelesene Badges",
+      "badgeDescription": "Steuern, wo die Anzahl ungelesener Nachrichten angezeigt wird.",
+      "appBadge": "App-Symbol-Badge",
+      "appBadgeDesc": "Ungelesene auf dem Taskleisten- oder Dock-Symbol (PWA).",
+      "faviconBadge": "Browser-Tab-Badge",
+      "faviconBadgeDesc": "Ungelesene auf dem Browser-Tab-Symbol.",
+      "badgeOn": "Aktiviert",
+      "badgeOff": "Deaktiviert"
     },
     "push": {
       "title": "Push-Benachrichtigungen",

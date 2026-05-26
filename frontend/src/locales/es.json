@@ -541,7 +541,15 @@
       "customUpload": "Subir archivo de audio",
       "customChange": "Cambiar archivo",
       "customButton": "Subir",
-      "uploadError": "El archivo debe ser menor de 2 MB."
+      "uploadError": "El archivo debe ser menor de 2 MB.",
+      "badgeTitle": "Insignias de no leídos",
+      "badgeDescription": "Controla dónde se muestra el recuento de mensajes no leídos.",
+      "appBadge": "Insignia del icono de la app",
+      "appBadgeDesc": "No leídos en el icono de la barra de tareas o el dock (PWA).",
+      "faviconBadge": "Insignia de la pestaña del navegador",
+      "faviconBadgeDesc": "No leídos en el icono de la pestaña del navegador.",
+      "badgeOn": "Activado",
+      "badgeOff": "Desactivado"
     },
     "push": {
       "title": "Notificaciones push",

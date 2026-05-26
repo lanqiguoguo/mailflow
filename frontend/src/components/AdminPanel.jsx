@@ -3371,7 +3371,8 @@ function PushNotificationsSection() {
 // ─── Notifications Tab ────────────────────────────────────────────────────────
 function NotificationsTab() {
   const { t } = useTranslation();
-  const { notificationSound, setNotificationSound, customSoundDataUrl, setCustomSoundDataUrl } = useStore();
+  const { notificationSound, setNotificationSound, customSoundDataUrl, setCustomSoundDataUrl,
+          showAppBadge, setShowAppBadge, showFaviconBadge, setShowFaviconBadge } = useStore();
   const fileInputRef = useRef(null);
   const [customFileName, setCustomFileName] = useState(
     () => localStorage.getItem('mailflow_custom_sound_name') || ''
@@ -3545,6 +3546,46 @@ function NotificationsTab() {
             </div>
           );
         })()}
+      </div>
+
+      {/* Unread Badges */}
+      <div style={{ marginTop: 32 }}>
+        <div style={{ height: 1, background: 'var(--border-subtle)', marginBottom: 24 }} />
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>
+          {t('admin.notifications.badgeTitle')}
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 16 }}>
+          {t('admin.notifications.badgeDescription')}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {[
+            { label: t('admin.notifications.appBadge'), desc: t('admin.notifications.appBadgeDesc'), value: showAppBadge, set: setShowAppBadge },
+            { label: t('admin.notifications.faviconBadge'), desc: t('admin.notifications.faviconBadgeDesc'), value: showFaviconBadge, set: setShowFaviconBadge },
+          ].map(({ label, desc, value, set: setter }) => (
+            <div key={label} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '12px 16px', borderRadius: 10,
+              background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)',
+            }}>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 2 }}>{label}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>{desc}</div>
+              </div>
+              <button
+                onClick={() => setter(!value)}
+                style={{
+                  padding: '6px 14px', borderRadius: 7, fontSize: 13, fontWeight: 500,
+                  cursor: 'pointer', transition: 'all 0.15s', flexShrink: 0, marginLeft: 16,
+                  background: value ? 'var(--accent)' : 'transparent',
+                  color: value ? 'white' : 'var(--text-secondary)',
+                  border: value ? '1px solid transparent' : '1px solid var(--border)',
+                }}
+              >
+                {value ? t('admin.notifications.badgeOn') : t('admin.notifications.badgeOff')}
+              </button>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Push Notifications */}

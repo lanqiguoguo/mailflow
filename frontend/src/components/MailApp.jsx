@@ -31,7 +31,7 @@ export default function MailApp() {
     unreadCounts, selectedAccountId, openCompose, setSelectedAccount,
     shortcuts, selectedMessageId, setSelectedMessage,
     mobileSidebarOpen, setMobileSidebarOpen, addNotification,
-    fontSize,
+    fontSize, showAppBadge, showFaviconBadge,
   } = useStore();
 
   const scale = fontSize / 100;
@@ -108,14 +108,14 @@ export default function MailApp() {
       ? (unreadCounts.byAccount[selectedAccountId] ?? 0)
       : total;
     document.title = 'MailFlow';
-    updateFaviconBadge(tabCount);
+    updateFaviconBadge(showFaviconBadge ? tabCount : 0);
     // App-icon badge always reflects total unread across all accounts so that
     // selecting a zero-unread account never clears the home screen badge.
     if ('setAppBadge' in navigator) {
-      if (total > 0) navigator.setAppBadge(total).catch(() => {});
+      if (showAppBadge && total > 0) navigator.setAppBadge(total).catch(() => {});
       else navigator.clearAppBadge().catch(() => {});
     }
-  }, [unreadCounts, selectedAccountId]);
+  }, [unreadCounts, selectedAccountId, showAppBadge, showFaviconBadge]);
 
   // ── Global keyboard shortcut listener ──────────────────────────────────────
   // Uses refs for composing/showAdmin so the listener doesn't need to

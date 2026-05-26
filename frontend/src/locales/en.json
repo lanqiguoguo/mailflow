@@ -545,7 +545,15 @@
       "customUpload": "Upload audio file",
       "customChange": "Change file",
       "customButton": "Upload",
-      "uploadError": "File must be under 2 MB."
+      "uploadError": "File must be under 2 MB.",
+      "badgeTitle": "Unread Badges",
+      "badgeDescription": "Control where the unread count is displayed.",
+      "appBadge": "App icon badge",
+      "appBadgeDesc": "Unread count on the taskbar or dock icon when installed as a PWA.",
+      "faviconBadge": "Browser tab badge",
+      "faviconBadgeDesc": "Unread count on the browser tab icon.",
+      "badgeOn": "Enabled",
+      "badgeOff": "Disabled"
     },
     "push": {
       "title": "Push Notifications",

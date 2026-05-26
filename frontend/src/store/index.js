@@ -272,6 +272,20 @@ export const useStore = create((set, get) => ({
     schedulePrefSave({ fontSize: String(pct) });
   },
 
+  showAppBadge: localStorage.getItem('mailflow_app_badge') !== 'false',
+  setShowAppBadge: (val) => {
+    localStorage.setItem('mailflow_app_badge', String(val));
+    set({ showAppBadge: val });
+    schedulePrefSave({ showAppBadge: val });
+  },
+
+  showFaviconBadge: localStorage.getItem('mailflow_favicon_badge') !== 'false',
+  setShowFaviconBadge: (val) => {
+    localStorage.setItem('mailflow_favicon_badge', String(val));
+    set({ showFaviconBadge: val });
+    schedulePrefSave({ showFaviconBadge: val });
+  },
+
   // Layout
   layout: localStorage.getItem('mailflow_layout') || 'classic',
   setLayout: (layout) => {
@@ -492,6 +506,14 @@ export const useStore = create((set, get) => ({
       if (typeof prefs.hoverQuickActions === 'boolean') {
         localStorage.setItem('mailflow_hover_quick_actions', String(prefs.hoverQuickActions));
         set({ hoverQuickActions: prefs.hoverQuickActions });
+      }
+      if (typeof prefs.showAppBadge === 'boolean') {
+        localStorage.setItem('mailflow_app_badge', String(prefs.showAppBadge));
+        set({ showAppBadge: prefs.showAppBadge });
+      }
+      if (typeof prefs.showFaviconBadge === 'boolean') {
+        localStorage.setItem('mailflow_favicon_badge', String(prefs.showFaviconBadge));
+        set({ showFaviconBadge: prefs.showFaviconBadge });
       }
     } catch (_) {}
   },
