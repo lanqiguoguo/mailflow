@@ -834,6 +834,7 @@ export default function Sidebar() {
                       transition: 'background 0.1s, color 0.1s',
                       opacity: isDragging ? 0.4 : 1,
                       borderTop: isDropTarget ? '2px solid var(--accent)' : '2px solid transparent',
+                      WebkitTouchCallout: 'none', userSelect: 'none',
                     }}
                     onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-tertiary)'; e.currentTarget.style.color = 'var(--text-primary)'; } }}
                     onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-secondary)'; } }}
