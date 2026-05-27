@@ -313,6 +313,7 @@ export default function Sidebar() {
   const [favDragIdx, setFavDragIdx] = useState(null);
   const [favDropIdx, setFavDropIdx] = useState(null);
   const favLongPressTimer = useRef(null);
+  const favTouchStart = useRef(null); // { x, y } captured at touchstart for movement threshold
 
   // Inline create folder
   const [creatingFolder, setCreatingFolder] = useState(null); // {accountId}
@@ -355,11 +356,15 @@ export default function Sidebar() {
   };
 
   // When accounts finish loading, fetch folders for any account that was
-  // persisted as expanded — they won't have folders loaded yet this session.
+  // persisted as expanded OR has at least one favorited folder — the latter
+  // ensures folderObj is always defined when the favorites context menu opens,
+  // even if the user never expands that account's folder tree.
   useEffect(() => {
     if (!accountsReady) return;
     accounts.forEach(account => {
-      if (expandedAccounts[account.id] && !folders[account.id]) {
+      const needsFolders = (expandedAccounts[account.id] || favoriteFolders.some(f => f.accountId === account.id))
+        && !folders[account.id];
+      if (needsFolders) {
         api.getFolders(account.id).then(f => setFolders(account.id, f)).catch(console.error);
       }
     });
@@ -821,33 +826,55 @@ export default function Sidebar() {
                     onDragEnd={canDrag ? () => { setFavDragIdx(null); setFavDropIdx(null); } : undefined}
                     onClick={() => { if (!isRenamingThis) setSelectedAccount(accountId, path); }}
                     onTouchStart={e => {
-                      if (!folderObj || isRenamingThis) return;
+                      if (isRenamingThis) return;
+                      // Prevent iOS from processing this touch natively (drag mode,
+                      // text selection, "Copy | Look Up | Translate" callout).
+                      // touch-action: pan-y on the row lets the sidebar still scroll
+                      // vertically despite this preventDefault call.
+                      e.preventDefault();
                       const touch = e.touches[0];
                       const x = touch.clientX;
                       const y = touch.clientY;
+                      favTouchStart.current = { x, y };
                       favLongPressTimer.current = setTimeout(() => {
                         favLongPressTimer.current = null;
+                        favTouchStart.current = null;
                         window.getSelection()?.removeAllRanges();
-                        setFolderCtxMenu({ x, y, accountId, folderObj });
-                        setAccountCtxMenu(null);
+                        if (folderObj) {
+                          setFolderCtxMenu({ x, y, accountId, folderObj });
+                          setAccountCtxMenu(null);
+                        }
                       }, 500);
                     }}
-                    onTouchMove={() => {
-                      clearTimeout(favLongPressTimer.current);
-                      favLongPressTimer.current = null;
+                    onTouchMove={e => {
+                      if (!favLongPressTimer.current || !favTouchStart.current) return;
+                      const touch = e.touches[0];
+                      const dx = Math.abs(touch.clientX - favTouchStart.current.x);
+                      const dy = Math.abs(touch.clientY - favTouchStart.current.y);
+                      if (dx > 10 || dy > 10) {
+                        clearTimeout(favLongPressTimer.current);
+                        favLongPressTimer.current = null;
+                        favTouchStart.current = null;
+                      }
                     }}
                     onTouchEnd={() => {
-                      clearTimeout(favLongPressTimer.current);
-                      favLongPressTimer.current = null;
+                      if (favLongPressTimer.current) {
+                        // Timer still pending → short tap, not a long-press
+                        clearTimeout(favLongPressTimer.current);
+                        favLongPressTimer.current = null;
+                        favTouchStart.current = null;
+                        if (!isRenamingThis) setSelectedAccount(accountId, path);
+                      }
                     }}
                     onTouchCancel={() => {
                       clearTimeout(favLongPressTimer.current);
                       favLongPressTimer.current = null;
+                      favTouchStart.current = null;
                     }}
                     onContextMenu={e => {
                       e.preventDefault();
                       e.stopPropagation();
-                      // Desktop right-click only — touch long-press is handled by onTouchStart above
+                      // Desktop right-click only — touch is fully handled above
                       if (e.pointerType !== 'touch' && folderObj) {
                         setFolderCtxMenu({ x: e.clientX, y: e.clientY, accountId, folderObj });
                         setAccountCtxMenu(null);
@@ -857,6 +884,7 @@ export default function Sidebar() {
                       display: 'flex', alignItems: 'center',
                       gap: 8, padding: '7px 10px',
                       borderRadius: 7, cursor: 'pointer',
+                      touchAction: 'pan-y',
                       background: isActive ? 'var(--bg-hover)' : 'transparent',
                       color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                       transition: 'background 0.1s, color 0.1s',
@@ -868,9 +896,9 @@ export default function Sidebar() {
                   >
                     {canDrag && (
                       <span
-                        draggable
-                        onDragStart={() => { setFavDragIdx(idx); setFavDropIdx(null); }}
-                        style={{ color: 'var(--text-tertiary)', flexShrink: 0, display: 'flex', opacity: 0.4, cursor: 'grab' }}
+                        draggable={!isMobile}
+                        onDragStart={!isMobile ? () => { setFavDragIdx(idx); setFavDropIdx(null); } : undefined}
+                        style={{ color: 'var(--text-tertiary)', flexShrink: 0, display: 'flex', opacity: 0.4, cursor: isMobile ? 'default' : 'grab' }}
                       >
                         <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
                           <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
