@@ -125,6 +125,8 @@ export const useStore = create((set, get) => ({
     set({ sidebarWidth: w });
     schedulePrefSave({ sidebarWidth: String(w) });
   },
+  isSidebarResizing: false,
+  setIsSidebarResizing: (v) => set({ isSidebarResizing: v }),
   pageSize: parseInt(localStorage.getItem('mailflow_page_size')) || 50,
   setPageSize: (size) => {
     localStorage.setItem('mailflow_page_size', String(size));

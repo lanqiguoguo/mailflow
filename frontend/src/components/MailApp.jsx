@@ -32,6 +32,7 @@ export default function MailApp() {
     shortcuts, selectedMessageId, setSelectedMessage,
     mobileSidebarOpen, setMobileSidebarOpen, addNotification,
     fontSize, showAppBadge, showFaviconBadge,
+    sidebarWidth, setSidebarWidth, setIsSidebarResizing,
   } = useStore();
 
   const scale = fontSize / 100;
@@ -46,6 +47,46 @@ export default function MailApp() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const isMobile = useMobile();
   const sidebarDragRef = useRef(null);
+  const sidebarResizeRef = useRef(null);
+
+  const handleSidebarResizeMouseDown = (e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+    setIsSidebarResizing(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMouseMove = (mv) => {
+      const dx = mv.clientX - startX;
+      const clamped = Math.min(400, Math.max(160, startWidth + dx));
+      setSidebarWidth(clamped);
+    };
+
+    const onMouseUp = () => {
+      setIsSidebarResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      sidebarResizeRef.current = null;
+    };
+
+    sidebarResizeRef.current = { onMouseMove, onMouseUp };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (sidebarResizeRef.current) {
+        document.removeEventListener('mousemove', sidebarResizeRef.current.onMouseMove);
+        document.removeEventListener('mouseup', sidebarResizeRef.current.onMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+  }, []);
 
   const currentLayout = LAYOUTS[layout] || LAYOUTS.classic;
 
@@ -335,6 +376,19 @@ export default function MailApp() {
       ) : (
         <>
           <Sidebar />
+          {!sidebarCollapsed && (
+            <div
+              onMouseDown={handleSidebarResizeMouseDown}
+              style={{
+                width: 4, flexShrink: 0, cursor: 'col-resize',
+                background: 'var(--border-subtle)',
+                transition: 'background 0.15s',
+                zIndex: 10,
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'var(--border-subtle)'; }}
+            />
+          )}
           <div style={{
             flex: 1, display: 'flex', overflow: 'hidden',
             minWidth: 0, flexDirection: currentLayout.direction,
