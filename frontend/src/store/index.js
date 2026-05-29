@@ -116,6 +116,15 @@ export const useStore = create((set, get) => ({
     localStorage.setItem('mailflow_sidebar_collapsed', String(next));
     return { sidebarCollapsed: next };
   }),
+  sidebarWidth: (() => {
+    const n = parseInt(localStorage.getItem('mailflow_sidebar_width'));
+    return (n >= 160 && n <= 400) ? n : 240;
+  })(),
+  setSidebarWidth: (w) => {
+    localStorage.setItem('mailflow_sidebar_width', String(w));
+    set({ sidebarWidth: w });
+    schedulePrefSave({ sidebarWidth: String(w) });
+  },
   pageSize: parseInt(localStorage.getItem('mailflow_page_size')) || 50,
   setPageSize: (size) => {
     localStorage.setItem('mailflow_page_size', String(size));
@@ -517,6 +526,13 @@ export const useStore = create((set, get) => ({
       if (prefs.replyDefault === 'reply' || prefs.replyDefault === 'replyAll') {
         localStorage.setItem('mailflow_reply_default', prefs.replyDefault);
         set({ replyDefault: prefs.replyDefault });
+      }
+      if (prefs.sidebarWidth) {
+        const n = parseInt(prefs.sidebarWidth);
+        if (n >= 160 && n <= 400) {
+          localStorage.setItem('mailflow_sidebar_width', String(n));
+          set({ sidebarWidth: n });
+        }
       }
       if (typeof prefs.showAppBadge === 'boolean') {
         localStorage.setItem('mailflow_app_badge', String(prefs.showAppBadge));

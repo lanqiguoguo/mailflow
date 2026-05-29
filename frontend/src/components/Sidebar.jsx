@@ -258,6 +258,7 @@ export default function Sidebar() {
     expandedAccounts, setExpandedAccounts,
     collapsedFolders, toggleCollapsedFolder,
     accountsReady,
+    sidebarWidth, setSidebarWidth,
   } = useStore();
 
   const isMobile = useMobile();
@@ -268,6 +269,50 @@ export default function Sidebar() {
   useEffect(() => {
     if (isMobile) setMobileSidebarOpen(false);
   }, [selectedAccountId, selectedFolder]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Resize handle — desktop only
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeListenersRef = useRef(null);
+
+  const handleResizeMouseDown = (e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+    setIsResizing(true);
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    const onMouseMove = (mv) => {
+      const dx = mv.clientX - startX;
+      const clamped = Math.min(400, Math.max(160, startWidth + dx));
+      setSidebarWidth(clamped);
+    };
+
+    const onMouseUp = () => {
+      setIsResizing(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+      resizeListenersRef.current = null;
+    };
+
+    resizeListenersRef.current = { onMouseMove, onMouseUp };
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  // Clean up dangling listeners if the component unmounts mid-drag
+  useEffect(() => {
+    return () => {
+      if (resizeListenersRef.current) {
+        document.removeEventListener('mousemove', resizeListenersRef.current.onMouseMove);
+        document.removeEventListener('mouseup', resizeListenersRef.current.onMouseUp);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+  }, []);
 
   const [showProfile, setShowProfile] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -683,14 +728,15 @@ export default function Sidebar() {
 
   return (
     <div style={{
-      width: sidebarCollapsed ? 60 : 240,
-      minWidth: sidebarCollapsed ? 60 : 240,
+      width: sidebarCollapsed ? 60 : sidebarWidth,
+      minWidth: sidebarCollapsed ? 60 : sidebarWidth,
       height: isMobile ? '100%' : '100%',
       background: 'var(--bg-secondary)',
       borderRight: '1px solid var(--border-subtle)',
       display: 'flex',
       flexDirection: 'column',
-      transition: 'width 0.2s ease, min-width 0.2s ease',
+      position: 'relative',
+      transition: isResizing ? 'none' : 'width 0.2s ease, min-width 0.2s ease',
       overflow: 'hidden',
     }}>
       {/* Header */}
@@ -1593,6 +1639,24 @@ export default function Sidebar() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Resize handle — desktop only, hidden when collapsed */}
+      {!sidebarCollapsed && !isMobile && (
+        <div
+          onMouseDown={handleResizeMouseDown}
+          style={{
+            position: 'absolute', right: 0, top: 0, bottom: 0, width: 6,
+            cursor: 'col-resize', zIndex: 10,
+            background: isResizing ? 'var(--accent)' : 'transparent',
+            opacity: isResizing ? 0.5 : 1,
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.opacity = '0.4'; }}
+          onMouseLeave={e => {
+            if (!isResizing) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.opacity = '1'; }
+          }}
+        />
       )}
     </div>
   );
