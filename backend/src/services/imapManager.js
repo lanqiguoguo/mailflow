@@ -6,6 +6,7 @@ import { sanitizeEmail } from './emailSanitizer.js';
 import { logger } from './logger.js';
 import { decrypt } from './encryption.js';
 import { sendPushToUser } from './pushNotifications.js';
+import { sendNotificationsToUser } from './notificationSender.js';
 import { redactEmail } from '../utils/redact.js';
 import { resolveForConnection } from './hostValidation.js';
 import { applyInboxRules } from './inboxRules.js';
@@ -1246,9 +1247,13 @@ export class ImapManager {
             ).then(r => {
               sendPushToUser(account.user_id, { ...basePayload, unreadCount: r.rows[0]?.total ?? 0 })
                 .catch(err => console.warn('Push notification error:', err.message));
+              sendNotificationsToUser(account.user_id, { ...basePayload, fromName: latest.fromName, fromEmail: latest.fromEmail, subject: latest.subject, snippet: latest.snippet, count: newMessages.length, unreadCount: r.rows[0]?.total ?? 0 })
+                .catch(err => console.warn('Webhook notification error:', err.message));
             }).catch(() => {
               sendPushToUser(account.user_id, basePayload)
                 .catch(err => console.warn('Push notification error:', err.message));
+              sendNotificationsToUser(account.user_id, { ...basePayload, fromName: latest.fromName, fromEmail: latest.fromEmail, subject: latest.subject, snippet: latest.snippet, count: newMessages.length })
+                .catch(err => console.warn('Webhook notification error:', err.message));
             });
           }
           // Pre-warm the body cache for newly arrived messages so clicking one

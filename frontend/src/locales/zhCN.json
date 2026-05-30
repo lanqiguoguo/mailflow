@@ -791,6 +791,31 @@
       "website": "官方网站",
       "sourceCode": "源代码",
       "sponsor": "支持开发"
+    },
+    "notifyChannels": {
+      "testFail": "测试失败",
+      "name": "渠道名称",
+      "description": "将新邮件提醒发送到飞书、钉钉、企业微信或任意 Webhook 地址",
+      "testOk": "测试发送成功！",
+      "typeFeishu": "飞书",
+      "disabled": "已禁用",
+      "editChannel": "编辑渠道",
+      "typeWebhook": "通用 Webhook",
+      "enabled": "已启用",
+      "empty": "尚未配置通知渠道。添加一个即可接收新邮件提醒。",
+      "typeWeCom": "企业微信",
+      "title": "通知渠道",
+      "typeDingTalk": "钉钉",
+      "add": "添加",
+      "namePlaceholder": "如：团队飞书机器人",
+      "feishuHint": "在飞书群中添加机器人，复制 Webhook 地址粘贴到此处。",
+      "confirmDelete": "确定删除此通知渠道？",
+      "addChannel": "添加渠道",
+      "wecomHint": "在企业微信群中添加机器人，复制 Webhook 地址。",
+      "test": "测试发送",
+      "webhookHint": "任意接收 POST JSON 的地址，消息格式: { event, title, body, fromName, fromEmail, subject, count }",
+      "dingtalkHint": "在钉钉群设置中添加机器人，复制 Webhook 地址。",
+      "type": "平台"
     }
   },
   "thread": {

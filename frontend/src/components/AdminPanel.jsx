@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useStore } from '../store/index.js';
 import { useMobile } from '../hooks/useMobile.js';
@@ -3273,6 +3273,121 @@ function UsersAndInvitesPanel() {
 }
 
 // ─── Push Notifications Section (inside NotificationsTab) ─────────────────────
+
+// ─── Notification Channels Section ─────────────────────────────────────────
+function NotificationChannelsSection() {
+  const { t } = useTranslation();
+  const [channels, setChannels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(null);
+  const [testResult, setTestResult] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const loadChannels = useCallback(async () => {
+    try { const data = await api.notificationChannels.list(); setChannels(data.channels); }
+    catch (err) { console.error('Failed to load channels:', err); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { loadChannels(); }, [loadChannels]);
+
+  const handleSave = async () => {
+    if (!editing?.name?.trim() || !editing?.url?.trim()) return;
+    setSaving(true);
+    try {
+      if (editing.id) {
+        await api.notificationChannels.update(editing.id, { type: editing.type, name: editing.name.trim(), url: editing.url.trim(), enabled: editing.enabled });
+      } else {
+        await api.notificationChannels.create({ type: editing.type, name: editing.name.trim(), url: editing.url.trim() });
+      }
+      setEditing(null); await loadChannels();
+    } catch (err) { alert(err.message); }
+    finally { setSaving(false); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm(t('admin.notifyChannels.confirmDelete'))) return;
+    try { await api.notificationChannels.delete(id); await loadChannels(); }
+    catch (err) { alert(err.message); }
+  };
+
+  const handleTest = async () => {
+    if (!editing?.url || !editing?.type) return;
+    setTestResult(null);
+    try {
+      const result = await api.notificationChannels.test({ type: editing.type, url: editing.url.trim() });
+      setTestResult(result.ok ? { ok: true } : { ok: false, error: result.error });
+    } catch (err) { setTestResult({ ok: false, error: err.message }); }
+  };
+
+  const typeLabels = {
+    webhook: t('admin.notifyChannels.typeWebhook'), feishu: t('admin.notifyChannels.typeFeishu'),
+    dingtalk: t('admin.notifyChannels.typeDingTalk'), wecom: t('admin.notifyChannels.typeWeCom'),
+  };
+  const typeHints = {
+    feishu: t('admin.notifyChannels.feishuHint'), dingtalk: t('admin.notifyChannels.dingtalkHint'),
+    wecom: t('admin.notifyChannels.wecomHint'), webhook: t('admin.notifyChannels.webhookHint'),
+  };
+  const icons = { feishu: '\uD83D\uDCE2', dingtalk: '\uD83D\uDD14', wecom: '\uD83D\uDCAC', webhook: '\uD83D\uDD17' };
+  const testMsg = testResult ? (testResult.ok ? t('admin.notifyChannels.testOk') : t('admin.notifyChannels.testFail') + ': ' + testResult.error) : null;
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <div style={{ height: 1, background: 'var(--border-subtle)', marginBottom: 24 }} />
+      <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{t('admin.notifyChannels.title')}</div>
+      <div style={{ fontSize: 13, color: 'var(--text-tertiary)', marginBottom: 20 }}>{t('admin.notifyChannels.description')}</div>
+      {loading ? <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>{t('common.loading')}</div> : (<>
+        {channels.length === 0 && !editing && (<div style={{ padding: '24px', textAlign: 'center', border: '1px dashed var(--border)', borderRadius: 10, color: 'var(--text-tertiary)', fontSize: 13 }}>{t('admin.notifyChannels.empty')}</div>)}
+        {channels.map(ch => (
+          <div key={ch.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 10, marginBottom: 8, background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', opacity: ch.enabled ? 1 : 0.5 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 18 }}>{icons[ch.type] || '\uD83D\uDD17'}</span>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>{ch.name}{!ch.enabled && React.createElement('span', { style: { color: 'var(--text-tertiary)', marginLeft: 6, fontSize: 11 } }, ' (' + t('admin.notifyChannels.disabled') + ')')}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{typeLabels[ch.type]} {'\u2014'} {ch.url}</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginLeft: 12 }}>
+              <button onClick={() => setEditing({ ...ch })} style={{ padding: '4px 10px', borderRadius: 5, fontSize: 11, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer' }}>{t('common.edit')}</button>
+              <button onClick={() => handleDelete(ch.id)} style={{ padding: '4px 10px', borderRadius: 5, fontSize: 11, background: 'transparent', border: '1px solid var(--border)', color: 'var(--red)', cursor: 'pointer' }}>{t('common.delete')}</button>
+            </div>
+          </div>
+        ))}
+        {editing && (
+          <div style={{ marginTop: editing.id ? 8 : (channels.length > 0 ? 8 : 0), padding: '16px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--accent-dim)' }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 12 }}>{editing.id ? t('admin.notifyChannels.editChannel') : t('admin.notifyChannels.addChannel')}</div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>{t('admin.notifyChannels.type')}</label>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {Object.entries(typeLabels).map(([val, label]) => (
+                  <button key={val} onClick={() => setEditing(e => ({ ...e, type: val }))} style={{ padding: '5px 12px', borderRadius: 6, fontSize: 12, cursor: 'pointer', background: editing.type === val ? 'var(--accent)' : 'transparent', color: editing.type === val ? 'white' : 'var(--text-secondary)', border: editing.type === val ? '1px solid transparent' : '1px solid var(--border)' }}>{icons[val]} {label}</button>
+                ))}
+              </div>
+              {typeHints[editing.type] && <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>{typeHints[editing.type]}</div>}
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>{t('admin.notifyChannels.name')}</label>
+              <input value={editing.name || ''} onChange={e => setEditing(x => ({ ...x, name: e.target.value }))} placeholder={t('admin.notifyChannels.namePlaceholder')} style={inputStyle} />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: 'var(--text-tertiary)', display: 'block', marginBottom: 4 }}>Webhook URL</label>
+              <input value={editing.url || ''} onChange={e => setEditing(x => ({ ...x, url: e.target.value }))} placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/xxx" style={inputStyle} />
+            </div>
+            {editing.id && (<div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}><input type="checkbox" checked={editing.enabled !== false} onChange={e => setEditing(x => ({ ...x, enabled: e.target.checked }))} /><span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{t('admin.notifyChannels.enabled')}</span></div>)}
+            {testMsg && (<div style={{ padding: '8px 12px', borderRadius: 6, marginBottom: 12, fontSize: 12, background: testResult.ok ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)', color: testResult.ok ? 'var(--green)' : 'var(--red)', border: '1px solid ' + (testResult.ok ? 'rgba(34,197,94,0.3)' : 'rgba(239,68,68,0.3)') }}>{testMsg}</div>)}
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={handleSave} disabled={saving} style={{ padding: '6px 16px', borderRadius: 6, fontSize: 12, fontWeight: 500, background: 'var(--accent)', color: 'white', border: 'none', cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1 }}>{saving ? t('common.saving') : (editing.id ? t('common.save') : t('admin.notifyChannels.add'))}</button>
+              <button onClick={handleTest} disabled={!editing.url} style={{ padding: '6px 16px', borderRadius: 6, fontSize: 12, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: editing.url ? 'pointer' : 'not-allowed' }}>{t('admin.notifyChannels.test')}</button>
+              <button onClick={() => { setEditing(null); setTestResult(null); }} style={{ padding: '6px 16px', borderRadius: 6, fontSize: 12, background: 'transparent', border: '1px solid var(--border)', color: 'var(--text-tertiary)', cursor: 'pointer' }}>{t('common.cancel')}</button>
+            </div>
+          </div>
+        )}
+        {!editing && (<button onClick={() => setEditing({ type: 'feishu', name: '', url: '', enabled: true })} style={{ marginTop: 8, padding: '8px 16px', borderRadius: 7, fontSize: 13, background: 'transparent', border: '1px dashed var(--border)', color: 'var(--accent)', cursor: 'pointer', width: '100%' }}>+ {t('admin.notifyChannels.addChannel')}</button>)}
+      </>)}
+    </div>
+  );
+}
+
 function PushNotificationsSection() {
   const { t } = useTranslation();
   const {
@@ -3622,6 +3737,7 @@ function NotificationsTab() {
 
       {/* Push Notifications */}
       <PushNotificationsSection />
+      <NotificationChannelsSection />
     </div>
   );
 }
@@ -5563,3 +5679,4 @@ export default function AdminPanel() {
     </div>
   );
 }
+

@@ -831,6 +831,31 @@
       "website": "Website",
       "sourceCode": "Source code",
       "sponsor": "Support development"
+    },
+    "notifyChannels": {
+      "webhookHint": "Any URL that accepts POST with JSON body: { event, title, body, fromName, fromEmail, subject, count }",
+      "wecomHint": "Add a bot in your WeCom group, copy the webhook URL.",
+      "empty": "No notification channels configured. Add one to get new mail alerts.",
+      "description": "Send new mail alerts to Feishu, DingTalk, WeCom, or any webhook URL.",
+      "disabled": "Disabled",
+      "title": "Notification Channels",
+      "testFail": "Test failed",
+      "typeWebhook": "Webhook",
+      "name": "Channel Name",
+      "testOk": "Test sent successfully!",
+      "dingtalkHint": "Add a bot in your DingTalk group settings, copy the webhook URL.",
+      "typeDingTalk": "DingTalk",
+      "editChannel": "Edit Channel",
+      "feishuHint": "Create a bot in your Feishu group, copy its webhook URL, and paste it here.",
+      "add": "Add",
+      "namePlaceholder": "e.g. Team Feishu Bot",
+      "test": "Test",
+      "enabled": "Enabled",
+      "typeWeCom": "WeCom",
+      "confirmDelete": "Delete this notification channel?",
+      "addChannel": "Add Channel",
+      "type": "Platform",
+      "typeFeishu": "Feishu"
     }
   },
   "thread": {

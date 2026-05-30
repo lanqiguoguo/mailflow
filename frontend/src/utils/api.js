@@ -165,4 +165,14 @@ export const api = {
   updateRule:  (id, data) => request('PUT',    `/rules/${id}`, data),
   deleteRule:  (id)       => request('DELETE', `/rules/${id}`),
   reorderRules:(ids)      => request('PATCH',  '/rules/reorder', { ids }),
+
+  // Notification Channels (webhooks, Feishu, DingTalk, etc.)
+  notificationChannels: {
+    list:    ()         => request('GET',    '/notification-channels'),
+    create:  (data)     => request('POST',   '/notification-channels', data),
+    update:  (id, data) => request('PUT',    `/notification-channels/${id}`, data),
+    delete:  (id)       => request('DELETE', `/notification-channels/${id}`),
+    test:    (data)     => request('POST',   '/notification-channels/test', data),
+  },
 };
+

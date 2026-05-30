@@ -19,6 +19,7 @@ import adminRoutes from './routes/admin.js';
 import totpRoutes from './routes/totp.js';
 import oidcApiRouter, { oidcBrowserRouter } from './routes/oidc.js';
 import rulesRoutes from './routes/rules.js';
+import notificationChannelsRoutes from './routes/notificationChannels.js';
 import { encryptExistingCredentials, query } from './services/db.js';
 import { runMigrations } from './services/migrations.js';
 import { reloadAuthSettings } from './services/authLimiter.js';
@@ -125,6 +126,7 @@ app.use('/api/search', searchRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/totp', totpRoutes);
 app.use('/api/rules', rulesRoutes);
+app.use('/api/notification-channels', notificationChannelsRoutes);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/api/version', (_req, res) => res.json({ version: APP_VERSION, sha: process.env.BUILD_SHA || 'dev' }));
@@ -184,3 +186,4 @@ const PORT = process.env.PORT || 3000;
 httpServer.listen(PORT, () => {
   console.log(`MailFlow backend running on port ${PORT}`);
 });
+
